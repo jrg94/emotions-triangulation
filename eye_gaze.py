@@ -36,10 +36,10 @@ for stimulus in stimuli:
     stimulus_filter = df[STIMULUS_NAME] == stimulus
     stimulus_data = df[stimulus_filter]
     fixation_sequence = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    fixation_sequence_length = pd.to_numeric(fixation_sequence[FIXATION_SEQUENCE]).max()
+    fixation_sequence_length = pd.to_numeric(fixation_sequence[FIXATION_SEQUENCE], downcast='unsigned').max()
     fixation_duration_mean = pd.to_numeric(fixation_sequence[FIXATION_DURATION]).mean()
     print(
         f'{stimulus}: \n'
-        f'\tFixation Sequence Length: {fixation_sequence_length}\n'
-        f'\tAverage Fixation_Duration: {fixation_duration_mean}'
+        f'\tFixation Sequence Length: {fixation_sequence_length} points\n'
+        f'\tAverage Fixation_Duration: {fixation_duration_mean} milliseconds'
     )
