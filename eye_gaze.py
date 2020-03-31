@@ -10,6 +10,7 @@ DATA = "table_3"
 STIMULUS_NAME = "StimulusName"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
+TIMESTAMP = "Timestamp"
 
 tables = dict()
 index = 0
@@ -40,22 +41,30 @@ for stimulus in stimuli:
     fixation_duration: pd.Series = pd.to_numeric(fixation_sequence_sans_dupes[FIXATION_DURATION], downcast='unsigned')
     fixation_sequence_length = fixation_sequence.max()
     fixation_sequence_duration = fixation_duration.sum()
+    seconds = fixation_sequence_duration / 1000
     fixation_duration_mean = fixation_duration.mean()
     fixation_duration_median = fixation_duration.median()
     fixation_duration_min = fixation_duration.min()
     fixation_duration_max = fixation_duration.max()
     fixation_duration_std = fixation_duration.std()
+    start_time = stimulus_data.iloc[0][TIMESTAMP]
+    end_time = stimulus_data.iloc[-1][TIMESTAMP]
     print(
         "\n".join(
             [
                 f'{stimulus}:',
-                f'\tFixation Sequence Length: {fixation_sequence_length} points',
-                f'\tAverage Fixation Duration: {fixation_duration_mean} milliseconds',
-                f'\tMedian Fixation Duration: {fixation_duration_median} milliseconds',
-                f'\tMinimum Fixation Duration: {fixation_duration_min} milliseconds',
-                f'\tMaximum Fixation Duration: {fixation_duration_max} milliseconds',
-                f'\tStandard Deviation Fixation Duration: {fixation_duration_std} milliseconds',
-                f'\tFixation Sequence Duration: {fixation_sequence_duration} milliseconds'
+                f'\t Stimulus Metrics:',
+                f'\t\tStart time: {start_time}',
+                f'\t\tEnd time: {end_time}',
+                f'\tFixation Sequence Metrics:',
+                f'\t\tNumber of Points: {fixation_sequence_length} points',
+                f'\t\tDuration: {seconds} seconds',
+                f'\tFixation Duration Metrics:',
+                f'\t\tMean: {fixation_duration_mean} milliseconds',
+                f'\t\tMedian: {fixation_duration_median} milliseconds',
+                f'\t\tStandard Deviation: {fixation_duration_std} milliseconds',
+                f'\t\tMinimum: {fixation_duration_min} milliseconds',
+                f'\t\tMaximum: {fixation_duration_max} milliseconds',
             ]
         )
     )
