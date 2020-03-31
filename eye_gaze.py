@@ -73,5 +73,3 @@ for stimulus in stimuli:
             ]
         )
     )
-
-    # TODO: add length of time of segment
