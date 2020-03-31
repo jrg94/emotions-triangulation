@@ -1,5 +1,6 @@
 import csv
 import sys
+from datetime import datetime
 
 import pandas as pd
 
@@ -11,6 +12,7 @@ STIMULUS_NAME = "StimulusName"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 TIMESTAMP = "Timestamp"
+TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 
 tables = dict()
 index = 0
@@ -48,14 +50,17 @@ for stimulus in stimuli:
     fixation_duration_max = fixation_duration.max()
     fixation_duration_std = fixation_duration.std()
     start_time = stimulus_data.iloc[0][TIMESTAMP]
+    start_date_time = datetime.strptime(start_time, TIME_FORMAT)
     end_time = stimulus_data.iloc[-1][TIMESTAMP]
+    end_date_time = datetime.strptime(end_time, TIME_FORMAT)
     print(
         "\n".join(
             [
                 f'{stimulus}:',
                 f'\t Stimulus Metrics:',
-                f'\t\tStart time: {start_time}',
-                f'\t\tEnd time: {end_time}',
+                f'\t\tStart time: {start_date_time}',
+                f'\t\tEnd time: {end_date_time}',
+                f'\t\tDuration: {end_date_time - start_date_time}',
                 f'\tFixation Sequence Metrics:',
                 f'\t\tNumber of Points: {fixation_sequence_length} points',
                 f'\t\tDuration: {seconds} seconds',
