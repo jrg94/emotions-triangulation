@@ -35,11 +35,28 @@ stimuli = df[STIMULUS_NAME].unique()
 for stimulus in stimuli:
     stimulus_filter = df[STIMULUS_NAME] == stimulus
     stimulus_data = df[stimulus_filter]
-    fixation_sequence = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    fixation_sequence_length = pd.to_numeric(fixation_sequence[FIXATION_SEQUENCE], downcast='unsigned').max()
-    fixation_duration_mean = pd.to_numeric(fixation_sequence[FIXATION_DURATION]).mean()
+    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
+    fixation_sequence = pd.to_numeric(fixation_sequence_sans_dupes[FIXATION_SEQUENCE], downcast='unsigned')
+    fixation_duration = pd.to_numeric(fixation_sequence_sans_dupes[FIXATION_DURATION], downcast='unsigned')
+    fixation_sequence_length = fixation_sequence.max()
+    fixation_duration_mean = fixation_duration.mean()
+    fixation_duration_median = fixation_duration.median()
+    fixation_duration_min = fixation_duration.min()
+    fixation_duration_max = fixation_duration.max()
     print(
-        f'{stimulus}: \n'
-        f'\tFixation Sequence Length: {fixation_sequence_length} points\n'
-        f'\tAverage Fixation_Duration: {fixation_duration_mean} milliseconds'
+        "\n".join(
+            [
+                f'{stimulus}:',
+                f'\tFixation Sequence Length: {fixation_sequence_length} points',
+                f'\tAverage Fixation Duration: {fixation_duration_mean} milliseconds',
+                f'\tMedian Fixation Duration: {fixation_duration_median} milliseconds',
+                f'\tMinimum Fixation Duration: {fixation_duration_min} milliseconds',
+                f'\tMaximum Fixation Duration: {fixation_duration_max} milliseconds'
+            ]
+        )
     )
+
+    # TODO: add length of time of segment
+    # TODO: add standard deviation for fixation duration
+    # TODO: longest time spent staring at a point and start point
+    # TODO: min, max, median, standard deviation
