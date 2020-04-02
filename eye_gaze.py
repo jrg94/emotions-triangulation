@@ -61,6 +61,13 @@ def read_tsv_file(path: str) -> dict:
 
 
 def output_statistics(tables: dict):
+    """
+    Outputs summary statistics for a participant.
+
+    :param tables: a participant table
+    :return: None
+    """
+    
     data_table = tables[DATA]
     header = data_table[0]
     df = pd.DataFrame(data_table[1:], columns=header)
@@ -107,8 +114,9 @@ def output_statistics(tables: dict):
         )
 
 
-main()
+if __name__ == '__main__':
+    main()
 
-    #TODO: 30 second or one or two-minute minute buckets
-    #TODO: Mean fixation duration & fixation count
-    #TODO: slice window by 2 minutes
+# TODO: 30 second or one or two-minute minute buckets
+# TODO: Mean fixation duration & fixation count
+# TODO: slice window by 2 minutes
