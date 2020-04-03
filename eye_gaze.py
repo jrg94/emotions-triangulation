@@ -152,8 +152,10 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(fixation_counts, avg_fixation_duration):
+def plot_data(stimulus, fixation_counts, avg_fixation_duration):
     fig, ax = plt.subplots()
+
+    plt.title(stimulus)
 
     color = 'tab:red'
     ax.plot(fixation_counts, color=color)
@@ -168,6 +170,7 @@ def plot_data(fixation_counts, avg_fixation_duration):
     ax2.set_ylabel("Mean Fixation Duration", color=color)
     ax2.tick_params(axis='y', labelcolor=color)
 
+    fig.tight_layout()
     plt.show()
 
 
@@ -186,7 +189,7 @@ def generate_statistics(tables: dict):
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
         fixation_counts, avg_fixation_duration = windowed_metrics(stimulus_data)
-        plot_data(fixation_counts, avg_fixation_duration)
+        plot_data(stimulus, fixation_counts, avg_fixation_duration)
 
 
 if __name__ == '__main__':
