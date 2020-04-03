@@ -70,6 +70,8 @@ def clean_data(tables: dict) -> pd.DataFrame:
     header = data_table[0]
     data = pd.DataFrame(data_table[1:], columns=header)
     data[TIMESTAMP] = pd.to_datetime(data[TIMESTAMP], format=TIME_FORMAT)
+    data[FIXATION_SEQUENCE] = pd.to_numeric(data[FIXATION_SEQUENCE])
+    data[FIXATION_DURATION] = pd.to_numeric(data[FIXATION_DURATION])
     return data
 
 
@@ -94,10 +96,8 @@ def output_statistics(tables: dict):
         stimulus_filter = df[STIMULUS_NAME] == stimulus
         stimulus_data = df[stimulus_filter]
         fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-        fixation_sequence: pd.Series = pd.to_numeric(fixation_sequence_sans_dupes[FIXATION_SEQUENCE],
-                                                     downcast='unsigned')
-        fixation_duration: pd.Series = pd.to_numeric(fixation_sequence_sans_dupes[FIXATION_DURATION],
-                                                     downcast='unsigned')
+        fixation_sequence: pd.Series = fixation_sequence_sans_dupes[FIXATION_SEQUENCE]
+        fixation_duration: pd.Series = fixation_sequence_sans_dupes[FIXATION_DURATION]
         fixation_sequence_length = fixation_sequence.max()
         fixation_sequence_duration = fixation_duration.sum()
         seconds = fixation_sequence_duration / 1000
