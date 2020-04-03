@@ -15,7 +15,7 @@ FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "120S"
+WINDOW = "30S"
 
 
 def main():
@@ -161,25 +161,27 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration):
     :param avg_fixation_duration: the average fixation durations by time
     :return: None
     """
-    time = fixation_counts.index.astype(np.int64) // 10 ** 9
+    time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60
     time = time - time.min()
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(12, 4))
 
     plt.title(stimulus)
 
     color = 'tab:red'
     ax.plot(time, fixation_counts, color=color, linewidth=2)
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Fixation Count", color=color)
+    ax.set_xlabel("Time (minutes)", fontsize="large")
+    ax.set_ylabel("Fixation Count", color=color, fontsize="large")
     ax.tick_params(axis='y', labelcolor=color)
 
     ax2 = ax.twinx()
 
     color = 'tab:cyan'
     ax2.plot(time, avg_fixation_duration, color=color, linewidth=2)
-    ax2.set_ylabel("Mean Fixation Duration (ms)", color=color)
+    ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
+
+    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
     fig.tight_layout()
     plt.show()
