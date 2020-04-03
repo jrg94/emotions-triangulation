@@ -2,7 +2,6 @@ import csv
 import sys
 
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -153,6 +152,14 @@ def output_summary_report(metrics: dict, depth: int = 0):
 
 
 def plot_data(stimulus, fixation_counts, avg_fixation_duration):
+    """
+    Plots the fixation count and average fixation duration data.
+
+    :param stimulus: the current stimulus used as the plot title
+    :param fixation_counts: the unique counts of fixations by time
+    :param avg_fixation_duration: the average fixation durations by time
+    :return: None
+    """
     fig, ax = plt.subplots()
 
     plt.title(stimulus)
@@ -194,7 +201,3 @@ def generate_statistics(tables: dict):
 
 if __name__ == '__main__':
     main()
-
-# TODO: 30 second or one or two-minute minute buckets
-# TODO: Mean fixation duration & fixation count
-# TODO: slice window by 2 minutes
