@@ -3,6 +3,7 @@ import sys
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 META_DATA = "table_0"
@@ -14,7 +15,7 @@ FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "30S"
+WINDOW = "120S"
 
 
 def main():
@@ -160,21 +161,24 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration):
     :param avg_fixation_duration: the average fixation durations by time
     :return: None
     """
+    time = fixation_counts.index.astype(np.int64) // 10 ** 9
+    time = time - time.min()
+
     fig, ax = plt.subplots()
 
     plt.title(stimulus)
 
     color = 'tab:red'
-    ax.plot(fixation_counts, color=color)
-    ax.set_xlabel("Time")
+    ax.plot(time, fixation_counts, color=color, linewidth=2)
+    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Fixation Count", color=color)
     ax.tick_params(axis='y', labelcolor=color)
 
     ax2 = ax.twinx()
 
-    color = 'tab:blue'
-    ax2.plot(avg_fixation_duration, color=color)
-    ax2.set_ylabel("Mean Fixation Duration", color=color)
+    color = 'tab:cyan'
+    ax2.plot(time, avg_fixation_duration, color=color, linewidth=2)
+    ax2.set_ylabel("Mean Fixation Duration (ms)", color=color)
     ax2.tick_params(axis='y', labelcolor=color)
 
     fig.tight_layout()
