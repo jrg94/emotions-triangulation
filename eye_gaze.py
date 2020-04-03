@@ -161,8 +161,8 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration):
     :param avg_fixation_duration: the average fixation durations by time
     :return: None
     """
-    time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60
-    time = time - time.min()
+    time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
+    time = time - time.min()  # Scales minutes back to 0
 
     fig, ax = plt.subplots(figsize=(12, 4))
 
