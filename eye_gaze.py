@@ -33,9 +33,6 @@ def read_tsv_files(*paths) -> dict:
     output = dict()
     for path in paths:
         output[path] = read_tsv_file(path)
-    else:
-        print("Please provide the path to a data file.")
-
     return output
 
 
@@ -60,6 +57,30 @@ def read_tsv_file(path: str) -> dict:
     return tables
 
 
+def clean_data(tables: dict) -> pd.DataFrame:
+    """
+    Assigns appropriate types to columns. For example, this method
+    converts the timestamp column to the appropriate Python data type
+    datetime.
+
+    :param tables: a raw dictionary of iMotions data for a participant
+    :return: a pandas DataFrame of the iMotions data
+    """
+    data_table = tables[DATA]
+    header = data_table[0]
+    data = pd.DataFrame(data_table[1:], columns=header)
+    data[TIMESTAMP] = pd.to_datetime(data[TIMESTAMP], format=TIME_FORMAT)
+    return data
+
+
+def statistics_windows(stimulus_data: pd.DataFrame, duration: int = None) -> pd.DataFrame:
+    if duration:
+        timestamps = pd.to_datetime(stimulus_data[TIMESTAMP], format=TIME_FORMAT)
+        return timestamps
+    else:
+        return stimulus_data
+
+
 def output_statistics(tables: dict):
     """
     Outputs summary statistics for a participant.
@@ -67,10 +88,7 @@ def output_statistics(tables: dict):
     :param tables: a participant table
     :return: None
     """
-    
-    data_table = tables[DATA]
-    header = data_table[0]
-    df = pd.DataFrame(data_table[1:], columns=header)
+    df = clean_data(tables)
     stimuli = df[STIMULUS_NAME].unique()
     for stimulus in stimuli:
         stimulus_filter = df[STIMULUS_NAME] == stimulus
@@ -88,10 +106,8 @@ def output_statistics(tables: dict):
         fixation_duration_min = fixation_duration.min()
         fixation_duration_max = fixation_duration.max()
         fixation_duration_std = fixation_duration.std()
-        start_time = stimulus_data.iloc[0][TIMESTAMP]
-        start_date_time = datetime.strptime(start_time, TIME_FORMAT)
-        end_time = stimulus_data.iloc[-1][TIMESTAMP]
-        end_date_time = datetime.strptime(end_time, TIME_FORMAT)
+        start_date_time = stimulus_data.iloc[0][TIMESTAMP]
+        end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
         print(
             "\n".join(
                 [
