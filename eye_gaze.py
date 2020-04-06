@@ -156,7 +156,7 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(stimulus, fixation_counts, avg_fixation_duration):
+def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation):
     """
     Plots the fixation count and average fixation duration data.
 
@@ -206,7 +206,9 @@ def generate_statistics(tables: dict):
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
         fixation_counts, avg_fixation_duration = windowed_metrics(stimulus_data)
-        plot_data(stimulus, fixation_counts, avg_fixation_duration)
+        pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+        print(pupil_dilation)
+        plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation)
 
 
 if __name__ == '__main__':
