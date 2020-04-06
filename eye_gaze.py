@@ -103,6 +103,10 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     fixation_duration_std = fixation_duration.std()
     start_date_time = stimulus_data.iloc[0][TIMESTAMP]
     end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
+    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
+    pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
+    pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
     return {
         f"{stimulus}": {
             "Stimulus Metrics": {
@@ -120,6 +124,10 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
                 "Standard Deviation (ms)": fixation_duration_std,
                 "Minimum (ms)": fixation_duration_min,
                 "Maximum (ms)": fixation_duration_max
+            },
+            "Pupil Metrics": {
+                "Mean Left/Right (mm)": pupil_dilation_mean,
+                "Median Left/Right (mm)": pupil_dilation_median
             }
         }
     }
@@ -165,28 +173,41 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation):
     :param avg_fixation_duration: the average fixation durations by time
     :return: None
     """
-    time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
-    time = time - time.min()  # Scales minutes back to 0
+    fixation_time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
+    fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
-    fig, ax = plt.subplots(figsize=(12, 4))
+    pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
+    pupil_time = pupil_time - pupil_time.min()
 
-    plt.title(stimulus)
+    fig, ax = plt.subplots(2, 1, figsize=(12, 8))
+    top_plot = ax[0]
+    bot_plot = ax[1]
 
     color = 'tab:red'
-    ax.plot(time, fixation_counts, color=color, linewidth=2)
-    ax.set_xlabel("Time (minutes)", fontsize="large")
-    ax.set_ylabel("Fixation Count", color=color, fontsize="large")
-    ax.tick_params(axis='y', labelcolor=color)
+    top_plot.plot(fixation_time, fixation_counts, color=color, linewidth=2)
+    top_plot.set_xlabel("Time (minutes)", fontsize="large")
+    top_plot.set_ylabel("Fixation Count", color=color, fontsize="large")
+    top_plot.tick_params(axis='y', labelcolor=color)
 
-    ax2 = ax.twinx()
+    ax2 = top_plot.twinx()
 
     color = 'tab:cyan'
-    ax2.plot(time, avg_fixation_duration, color=color, linewidth=2)
+    ax2.plot(fixation_time, avg_fixation_duration, color=color, linewidth=2)
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
 
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    bot_plot.plot(pupil_time, pupil_dilation[PUPIL_LEFT], label="Left Pupil")
+    bot_plot.plot(pupil_time, pupil_dilation[PUPIL_RIGHT], label="Right Pupil")
+    bot_plot.set_xlabel("Time (minutes)", fontsize="large")
+    bot_plot.set_ylabel("Pupil Dilation (mm)", fontsize="large")
+    bot_plot.legend()
 
+    plt.sca(bot_plot)
+    plt.xticks(np.arange(0, pupil_time.max() + 1, step=2))  # Force two-minute labels
+    plt.sca(top_plot)
+    plt.xticks(np.arange(0, fixation_time.max() + 1, step=2))  # Force two-minute labels
+
+    plt.title(stimulus)
     fig.tight_layout()
     plt.show()
 
@@ -207,7 +228,7 @@ def generate_statistics(tables: dict):
         output_summary_report(report)
         fixation_counts, avg_fixation_duration = windowed_metrics(stimulus_data)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-        print(pupil_dilation)
+        pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
         plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation)
 
 
