@@ -16,6 +16,8 @@ FIXATION_SEQUENCE = "FixationSeq"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
+PUPIL_LEFT = "PupilLeft"
+PUPIL_RIGHT = "PupilRight"
 
 
 def main():
@@ -75,6 +77,8 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[TIMESTAMP] = pd.to_datetime(data[TIMESTAMP], format=TIME_FORMAT)
     data[FIXATION_SEQUENCE] = pd.to_numeric(data[FIXATION_SEQUENCE])
     data[FIXATION_DURATION] = pd.to_numeric(data[FIXATION_DURATION])
+    data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
+    data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
     return data
 
 
