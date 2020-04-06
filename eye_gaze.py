@@ -164,13 +164,14 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation):
+def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation: pd.DataFrame):
     """
     Plots the fixation count and average fixation duration data.
 
     :param stimulus: the current stimulus used as the plot title
     :param fixation_counts: the unique counts of fixations by time
     :param avg_fixation_duration: the average fixation durations by time
+    :param pupil_dilation: a dataframe of pupil information
     :return: None
     """
     fixation_time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
@@ -183,33 +184,61 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation):
     top_plot = ax[0]
     bot_plot = ax[1]
 
-    color = 'tab:red'
-    top_plot.plot(fixation_time, fixation_counts, color=color, linewidth=2)
-    top_plot.set_xlabel("Time (minutes)", fontsize="large")
-    top_plot.set_ylabel("Fixation Count", color=color, fontsize="large")
-    top_plot.tick_params(axis='y', labelcolor=color)
+    generate_fixation_plot(top_plot, fixation_time, fixation_counts, avg_fixation_duration)
+    generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
-    ax2 = top_plot.twinx()
-
-    color = 'tab:cyan'
-    ax2.plot(fixation_time, avg_fixation_duration, color=color, linewidth=2)
-    ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
-    ax2.tick_params(axis='y', labelcolor=color)
-
-    bot_plot.plot(pupil_time, pupil_dilation[PUPIL_LEFT], label="Left Pupil")
-    bot_plot.plot(pupil_time, pupil_dilation[PUPIL_RIGHT], label="Right Pupil")
-    bot_plot.set_xlabel("Time (minutes)", fontsize="large")
-    bot_plot.set_ylabel("Pupil Dilation (mm)", fontsize="large")
-    bot_plot.legend()
-
-    plt.sca(bot_plot)
-    plt.xticks(np.arange(0, pupil_time.max() + 1, step=2))  # Force two-minute labels
     plt.sca(top_plot)
-    plt.xticks(np.arange(0, fixation_time.max() + 1, step=2))  # Force two-minute labels
-
     plt.title(stimulus)
     fig.tight_layout()
     plt.show()
+
+
+def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
+    """
+    A handy method for generating the pupil dilation plot.
+
+    :param axes: the axes to plot on
+    :param time: the numpy array of times
+    :param dilation: the dataframe of pupil data
+    :return: None
+    """
+    plt.sca(axes)
+
+    axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
+    axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
+    axes.legend()
+
+    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
+def generate_fixation_plot(axes, time: np.array, counts: pd.Series, duration: pd.Series):
+    """
+    A handy method for generating the fixation plot.
+
+    :param axes: the axes to plot on
+    :param time: the numpy array of times
+    :param counts: the series of fixation counts
+    :param duration: the series of fixation durations
+    :return: None
+    """
+    plt.sca(axes)
+
+    color = 'tab:red'
+    axes.plot(time, counts, color=color, linewidth=2)
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Fixation Count", color=color, fontsize="large")
+    axes.tick_params(axis='y', labelcolor=color)
+
+    ax2 = axes.twinx()
+
+    color = 'tab:cyan'
+    ax2.plot(time, duration, color=color, linewidth=2)
+    ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def generate_statistics(tables: dict):
