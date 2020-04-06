@@ -164,7 +164,7 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation: pd.DataFrame):
+def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pupil_dilation: pd.DataFrame):
     """
     Plots the fixation count and average fixation duration data.
 
@@ -188,7 +188,7 @@ def plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation: 
     generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
     plt.sca(top_plot)
-    plt.title(stimulus)
+    plt.title(f'{stimulus}: {participant}')
     fig.tight_layout()
     plt.show()
 
@@ -210,7 +210,8 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
     axes.legend()
 
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    if len(time) != 0:
+        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def generate_fixation_plot(axes, time: np.array, counts: pd.Series, duration: pd.Series):
@@ -249,6 +250,7 @@ def generate_statistics(tables: dict):
     :return: None
     """
     df = clean_data(tables)
+    participant = df.iloc[0]["Name"]
     stimuli = df[STIMULUS_NAME].unique()
     for stimulus in stimuli:
         stimulus_filter = df[STIMULUS_NAME] == stimulus
@@ -258,7 +260,7 @@ def generate_statistics(tables: dict):
         fixation_counts, avg_fixation_duration = windowed_metrics(stimulus_data)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
         pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
-        plot_data(stimulus, fixation_counts, avg_fixation_duration, pupil_dilation)
+        plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pupil_dilation)
 
 
 if __name__ == '__main__':
