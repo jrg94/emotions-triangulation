@@ -168,6 +168,7 @@ def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pup
     """
     Plots the fixation count and average fixation duration data.
 
+    :param participant: the name of the participant
     :param stimulus: the current stimulus used as the plot title
     :param fixation_counts: the unique counts of fixations by time
     :param avg_fixation_duration: the average fixation durations by time
@@ -185,12 +186,39 @@ def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pup
     bot_plot = ax[1]
 
     generate_fixation_plot(top_plot, fixation_time, fixation_counts, avg_fixation_duration)
-    generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
+    generate_pupil_circle_plot(bot_plot, fixation_time, pupil_dilation)
+    #generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
     plt.sca(top_plot)
     plt.title(f'{stimulus}: {participant}')
     fig.tight_layout()
     plt.show()
+
+
+def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
+    """
+    A handy method for generating the pupil dilation plot.
+
+    :param axes: the axes to plot on
+    :param time: the numpy array of times
+    :param dilation: the dataframe of pupil data
+    :return: None
+    """
+    plt.sca(axes)
+    windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
+
+    # left
+    left_pupil = windowed_data.mean()[PUPIL_LEFT]
+    category_left = ["left"] * len(time)
+    normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * 100
+
+    # right
+    right_pupil = windowed_data.mean()[PUPIL_RIGHT]
+    category_right = ["right"] * len(time)
+    normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * 100
+
+    axes.scatter(time, category_left, s=normalized_left_pupil)
+    axes.scatter(time, category_right, s=normalized_right_pupil)
 
 
 def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
