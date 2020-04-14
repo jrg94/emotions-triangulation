@@ -107,6 +107,8 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
     pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
     pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
+    pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
+    pupil_dilation_max = pupil_dilation[PUPIL_LEFT].max(), pupil_dilation[PUPIL_RIGHT].max()
     return {
         f"{stimulus}": {
             "Stimulus Metrics": {
@@ -127,7 +129,9 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
             },
             "Pupil Metrics": {
                 "Mean Left/Right (mm)": pupil_dilation_mean,
-                "Median Left/Right (mm)": pupil_dilation_median
+                "Median Left/Right (mm)": pupil_dilation_median,
+                "Min Left/Right (mm)": pupil_dilation_min,
+                "Max Left/Right (mm)": pupil_dilation_max
             }
         }
     }
@@ -208,17 +212,20 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
     # left
-    left_pupil = windowed_data.mean()[PUPIL_LEFT]
-    category_left = ["left"] * len(time)
-    normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * 100
+    try: # a patch for now
+        left_pupil = windowed_data.mean()[PUPIL_LEFT]
+        category_left = ["left"] * len(time)
+        normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * 100
 
-    # right
-    right_pupil = windowed_data.mean()[PUPIL_RIGHT]
-    category_right = ["right"] * len(time)
-    normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * 100
+        # right
+        right_pupil = windowed_data.mean()[PUPIL_RIGHT]
+        category_right = ["right"] * len(time)
+        normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * 100
 
-    axes.scatter(time, category_left, s=normalized_left_pupil)
-    axes.scatter(time, category_right, s=normalized_right_pupil)
+        axes.scatter(time, category_left, s=normalized_left_pupil)
+        axes.scatter(time, category_right, s=normalized_right_pupil)
+    except AttributeError:
+        pass
 
 
 def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
