@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
 GAZE_CALIBRATION_SUMMARY_DETAILS = "table_2"
@@ -13,11 +12,14 @@ DATA = "table_3"
 STIMULUS_NAME = "StimulusName"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
+FIXATION_X = "FixationX"
+FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
+VISUAL_SCALE = 100  # Scales the dilation dot visually
 
 
 def main():
@@ -77,6 +79,8 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[TIMESTAMP] = pd.to_datetime(data[TIMESTAMP], format=TIME_FORMAT)
     data[FIXATION_SEQUENCE] = pd.to_numeric(data[FIXATION_SEQUENCE])
     data[FIXATION_DURATION] = pd.to_numeric(data[FIXATION_DURATION])
+    data[FIXATION_X] = pd.to_numeric(data[FIXATION_X])
+    data[FIXATION_Y] = pd.to_numeric(data[FIXATION_Y])
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
     return data
@@ -137,6 +141,20 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     }
 
 
+def grid_index(x, y):
+    if not np.isnan(x) and not np.isnan(y):
+        row = int(x / 2560 * 10)
+        col = int(y / 1440 * 10)
+        return row + col * 10
+    return -1
+
+
+def compute_spatial_density(df: pd.DataFrame) -> float:
+    points = [index for x, y in zip(df[FIXATION_X], df[FIXATION_Y]) if (index := grid_index(x, y)) >= 0]
+    count = len(np.unique(points))
+    return count / 100
+
+
 def windowed_metrics(stimulus_data: pd.DataFrame) -> tuple:
     """
     Computes fixation counts and average fixation duration within some window of time.
@@ -148,6 +166,8 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> tuple:
     windowed_data = fixation_sequence_sans_dupes.resample(WINDOW, on=TIMESTAMP)
     unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
+    fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
+    spatial_density = fixation_windows.apply(compute_spatial_density)
     return unique_fixation_counts, average_fixation_duration
 
 
@@ -183,7 +203,7 @@ def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pup
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
     pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-    pupil_time = pupil_time - pupil_time.min()
+    #pupil_time = pupil_time - pupil_time.min()
 
     fig, ax = plt.subplots(2, 1, figsize=(12, 8))
     top_plot = ax[0]
@@ -212,15 +232,16 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
     # left
-    try: # a patch for now
+    try:  # a patch for now
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
-        normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * 100
+        normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
+        # abs(left_pupil - left_pupil.max())/abs(left_pupil.max() - left_pupil.min())
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
-        normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * 100
+        normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * VISUAL_SCALE
 
         axes.scatter(time, category_left, s=normalized_left_pupil)
         axes.scatter(time, category_right, s=normalized_right_pupil)
