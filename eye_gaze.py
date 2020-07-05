@@ -10,10 +10,13 @@ GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
 GAZE_CALIBRATION_SUMMARY_DETAILS = "table_2"
 DATA = "table_3"
 STIMULUS_NAME = "StimulusName"
+AVERAGE_FIX_DUR = "Average Fixation Duration"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
+FIXATION_COUNTS = "Fixation Counts"
+SPATIAL_DENSITY = "Spatial Density"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
@@ -141,7 +144,17 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     }
 
 
-def grid_index(x, y):
+def grid_index(x: int, y: int) -> int:
+    """
+    Given the x and y coordinates of the screen, this function returns the index of the cell
+    that the point occupies. Currently, this function is hardcoded for a 10x10 grid and
+    a 2560x1440 screen. If x and y coordinates are not valid, this function returns -1.
+    Indices are numbered between 0 and 99.
+
+    :param x: the x position of a pixel
+    :param y: the y position of a pixel
+    :return: the index of that pixel with a 10x10 grid
+    """
     if not np.isnan(x) and not np.isnan(y):
         row = int(x / 2560 * 10)
         col = int(y / 1440 * 10)
@@ -150,12 +163,19 @@ def grid_index(x, y):
 
 
 def compute_spatial_density(df: pd.DataFrame) -> float:
+    """
+    Given a set of fixation points, this function returns the spatial density. In other words,
+    the ratio of grid points that are occupied by fixation points.
+
+    :param df: a dataframe containing fixation points
+    :return: a ratio
+    """
     points = [index for x, y in zip(df[FIXATION_X], df[FIXATION_Y]) if (index := grid_index(x, y)) >= 0]
     count = len(np.unique(points))
     return count / 100
 
 
-def windowed_metrics(stimulus_data: pd.DataFrame) -> tuple:
+def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     """
     Computes fixation counts and average fixation duration within some window of time.
 
@@ -168,7 +188,12 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> tuple:
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
     spatial_density = fixation_windows.apply(compute_spatial_density)
-    return unique_fixation_counts, average_fixation_duration
+    frame = {
+        FIXATION_COUNTS: unique_fixation_counts,
+        AVERAGE_FIX_DUR: average_fixation_duration,
+        SPATIAL_DENSITY: spatial_density
+    }
+    return pd.DataFrame(frame)
 
 
 def output_summary_report(metrics: dict, depth: int = 0):
@@ -188,18 +213,17 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pupil_dilation: pd.DataFrame):
+def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilation: pd.DataFrame):
     """
     Plots the fixation count and average fixation duration data.
 
+    :param window_metrics: a set of windowed metrics for plotting
     :param participant: the name of the participant
     :param stimulus: the current stimulus used as the plot title
-    :param fixation_counts: the unique counts of fixations by time
-    :param avg_fixation_duration: the average fixation durations by time
     :param pupil_dilation: a dataframe of pupil information
     :return: None
     """
-    fixation_time = (fixation_counts.index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
+    fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
     pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
@@ -209,7 +233,7 @@ def plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pup
     top_plot = ax[0]
     bot_plot = ax[1]
 
-    generate_fixation_plot(top_plot, fixation_time, fixation_counts, avg_fixation_duration)
+    generate_fixation_plot(top_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(bot_plot, fixation_time, pupil_dilation)
     #generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
@@ -270,20 +294,18 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
         plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
-def generate_fixation_plot(axes, time: np.array, counts: pd.Series, duration: pd.Series):
+def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
     """
     A handy method for generating the fixation plot.
 
     :param axes: the axes to plot on
     :param time: the numpy array of times
-    :param counts: the series of fixation counts
-    :param duration: the series of fixation durations
     :return: None
     """
     plt.sca(axes)
 
     color = 'tab:red'
-    axes.plot(time, counts, color=color, linewidth=2)
+    axes.plot(time, window_metrics[FIXATION_COUNTS], color=color, linewidth=2)
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Fixation Count", color=color, fontsize="large")
     axes.tick_params(axis='y', labelcolor=color)
@@ -291,7 +313,7 @@ def generate_fixation_plot(axes, time: np.array, counts: pd.Series, duration: pd
     ax2 = axes.twinx()
 
     color = 'tab:cyan'
-    ax2.plot(time, duration, color=color, linewidth=2)
+    ax2.plot(time, window_metrics[AVERAGE_FIX_DUR], color=color, linewidth=2)
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
 
@@ -313,10 +335,10 @@ def generate_statistics(tables: dict):
         stimulus_data = df[stimulus_filter]
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
-        fixation_counts, avg_fixation_duration = windowed_metrics(stimulus_data)
+        window_metrics = windowed_metrics(stimulus_data)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
         pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
-        plot_data(participant, stimulus, fixation_counts, avg_fixation_duration, pupil_dilation)
+        plot_data(participant, stimulus, window_metrics, pupil_dilation)
 
 
 if __name__ == '__main__':
