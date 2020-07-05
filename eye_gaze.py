@@ -258,6 +258,7 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     # left
     try:  # a patch for now
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
+        print(left_pupil)
         category_left = ["left"] * len(time)
         normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
         # abs(left_pupil - left_pupil.max())/abs(left_pupil.max() - left_pupil.min())
@@ -298,6 +299,7 @@ def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
     """
     A handy method for generating the fixation plot.
 
+    :param window_metrics: a set of windowed data points
     :param axes: the axes to plot on
     :param time: the numpy array of times
     :return: None
@@ -316,6 +318,15 @@ def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
     ax2.plot(time, window_metrics[AVERAGE_FIX_DUR], color=color, linewidth=2)
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
+
+    ax3 = axes.twinx()
+
+    ax3.spines["right"].set_position(("axes", 1.1))
+
+    color = 'tab:green'
+    ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
+    ax3.set_ylabel("Spatial Density", color=color, fontsize="large")
+    ax3.tick_params(axis="y", labelcolor=color)
 
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
@@ -336,6 +347,7 @@ def generate_statistics(tables: dict):
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
         window_metrics = windowed_metrics(stimulus_data)
+        print(window_metrics)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
         pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
         plot_data(participant, stimulus, window_metrics, pupil_dilation)
