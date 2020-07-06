@@ -229,15 +229,18 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
     #pupil_time = pupil_time - pupil_time.min()
 
-    fig, ax = plt.subplots(2, 1, figsize=(12, 8))
-    top_plot = ax[0]
-    bot_plot = ax[1]
+    fig, ax = plt.subplots(2, 2, figsize=(12, 8))
+    print(ax)
+    line_plot = ax[0][0]
+    dilation_plot = ax[1][0]
+    correlation_plot = ax[0][1]
 
-    generate_fixation_plot(top_plot, fixation_time, window_metrics)
-    generate_pupil_circle_plot(bot_plot, fixation_time, pupil_dilation)
+    generate_fixation_plot(line_plot, fixation_time, window_metrics)
+    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
+    generate_correlation_plot(correlation_plot, window_metrics)
     #generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
-    plt.sca(top_plot)
+    plt.sca(line_plot)
     plt.title(f'{stimulus}: {participant}')
     fig.tight_layout()
     plt.show()
@@ -295,7 +298,29 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
         plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
-def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
+    plt.sca(axes)
+
+    axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS])
+    axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
+    axes.set_ylabel("Fixation Count", fontsize="large")
+
+    # Vertical line for quadrants
+    axes.plot(
+        [window_metrics[AVERAGE_FIX_DUR].median(), window_metrics[AVERAGE_FIX_DUR].median()],
+        [window_metrics[FIXATION_COUNTS].min(), window_metrics[FIXATION_COUNTS].max()],
+        color="black"
+    )
+
+    # Horizontal line for quadrants
+    axes.plot(
+        [window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[AVERAGE_FIX_DUR].max()],
+        [window_metrics[FIXATION_COUNTS].median(), window_metrics[FIXATION_COUNTS].median()],
+        color="black"
+    )
+
+
+def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
     A handy method for generating the fixation plot.
 
@@ -321,7 +346,7 @@ def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
 
     ax3 = axes.twinx()
 
-    ax3.spines["right"].set_position(("axes", 1.1))
+    ax3.spines["right"].set_position(("axes", 1.2))
 
     color = 'tab:green'
     ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
