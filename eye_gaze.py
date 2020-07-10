@@ -117,7 +117,7 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
     pupil_dilation_max = pupil_dilation[PUPIL_LEFT].max(), pupil_dilation[PUPIL_RIGHT].max()
     return {
-        f"{stimulus}": {
+        f"{stimulus} ({stimulus_data['Name'].iloc[0]})": {
             "Stimulus Metrics": {
                 "Start time": start_date_time,
                 "End time": end_date_time,
@@ -227,10 +227,8 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
     pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-    #pupil_time = pupil_time - pupil_time.min()
 
     fig, ax = plt.subplots(2, 2, figsize=(12, 8))
-    print(ax)
     line_plot = ax[0][0]
     dilation_plot = ax[1][0]
     correlation_plot = ax[0][1]
@@ -238,7 +236,6 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
-    #generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
 
     plt.sca(line_plot)
     plt.title(f'{stimulus}: {participant}')
@@ -261,17 +258,21 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     # left
     try:  # a patch for now
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
-        print(left_pupil)
         category_left = ["left"] * len(time)
         normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
-        # abs(left_pupil - left_pupil.max())/abs(left_pupil.max() - left_pupil.min())
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
         normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * VISUAL_SCALE
 
+        # average
+        avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
+        category_avg = ["average"] * len(time)
+        normalized_avg_pupil = (avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) * VISUAL_SCALE
+
         axes.scatter(time, category_left, s=normalized_left_pupil)
+        axes.scatter(time, category_avg, s=normalized_avg_pupil)
         axes.scatter(time, category_right, s=normalized_right_pupil)
     except AttributeError:
         pass
@@ -372,7 +373,6 @@ def generate_statistics(tables: dict):
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
         window_metrics = windowed_metrics(stimulus_data)
-        print(window_metrics)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
         pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
         plot_data(participant, stimulus, window_metrics, pupil_dilation)
