@@ -22,7 +22,7 @@ TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
-VISUAL_SCALE = 100  # Scales the dilation dot visually
+VISUAL_SCALE = 200  # Scales the dilation dot visually
 
 
 def main():
@@ -117,7 +117,7 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
     pupil_dilation_max = pupil_dilation[PUPIL_LEFT].max(), pupil_dilation[PUPIL_RIGHT].max()
     return {
-        f"{stimulus}": {
+        f"{stimulus} ({stimulus_data['Name'].iloc[0]})": {
             "Stimulus Metrics": {
                 "Start time": start_date_time,
                 "End time": end_date_time,
@@ -226,18 +226,16 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
-    pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-    #pupil_time = pupil_time - pupil_time.min()
+    fig, ax = plt.subplots(3, 1, figsize=(12, 8))
+    line_plot = ax[0]
+    dilation_plot = ax[1]
+    correlation_plot = ax[2]
 
-    fig, ax = plt.subplots(2, 1, figsize=(12, 8))
-    top_plot = ax[0]
-    bot_plot = ax[1]
+    generate_fixation_plot(line_plot, fixation_time, window_metrics)
+    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
+    generate_correlation_plot(correlation_plot, window_metrics)
 
-    generate_fixation_plot(top_plot, fixation_time, window_metrics)
-    generate_pupil_circle_plot(bot_plot, fixation_time, pupil_dilation)
-    #generate_pupil_dilation_plot(bot_plot, pupil_time, pupil_dilation)
-
-    plt.sca(top_plot)
+    plt.sca(line_plot)
     plt.title(f'{stimulus}: {participant}')
     fig.tight_layout()
     plt.show()
@@ -255,20 +253,29 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     plt.sca(axes)
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
-    # left
     try:  # a patch for now
+        # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
-        print(left_pupil)
         category_left = ["left"] * len(time)
         normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
-        # abs(left_pupil - left_pupil.max())/abs(left_pupil.max() - left_pupil.min())
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
         normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * VISUAL_SCALE
 
+        # average
+        avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
+        category_avg = ["average"] * len(time)
+        normalized_avg_pupil = (avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) * VISUAL_SCALE
+        edge_avg = ["green"] * len(time)
+        max_index = np.argmax(normalized_avg_pupil)
+        edge_avg[max_index] = "black"
+        axes.annotate(f'{right_pupil.max():.2f} mm', (time[max_index], category_avg[max_index]),
+                      textcoords="offset points", ha='center', va='center', xytext=(0, 15))
+
         axes.scatter(time, category_left, s=normalized_left_pupil)
+        axes.scatter(time, category_avg, s=normalized_avg_pupil, edgecolors=edge_avg, color="green")
         axes.scatter(time, category_right, s=normalized_right_pupil)
     except AttributeError:
         pass
@@ -295,7 +302,29 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
         plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
-def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
+    plt.sca(axes)
+
+    axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS])
+    axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
+    axes.set_ylabel("Fixation Count", fontsize="large")
+
+    # Vertical line for quadrants
+    axes.plot(
+        [window_metrics[AVERAGE_FIX_DUR].median(), window_metrics[AVERAGE_FIX_DUR].median()],
+        [window_metrics[FIXATION_COUNTS].min(), window_metrics[FIXATION_COUNTS].max()],
+        color="black"
+    )
+
+    # Horizontal line for quadrants
+    axes.plot(
+        [window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[AVERAGE_FIX_DUR].max()],
+        [window_metrics[FIXATION_COUNTS].median(), window_metrics[FIXATION_COUNTS].median()],
+        color="black"
+    )
+
+
+def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
     A handy method for generating the fixation plot.
 
@@ -321,7 +350,7 @@ def generate_fixation_plot(axes, time: np.array, window_metrics: pd.DataFrame):
 
     ax3 = axes.twinx()
 
-    ax3.spines["right"].set_position(("axes", 1.1))
+    ax3.spines["right"].set_position(("axes", 1.2))
 
     color = 'tab:green'
     ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
@@ -347,7 +376,6 @@ def generate_statistics(tables: dict):
         report = summary_report(stimulus, stimulus_data)
         output_summary_report(report)
         window_metrics = windowed_metrics(stimulus_data)
-        print(window_metrics)
         pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
         pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
         plot_data(participant, stimulus, window_metrics, pupil_dilation)
