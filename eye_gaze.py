@@ -257,22 +257,28 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
         # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
-        normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
+        normalized_left_pupil = ((left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) + .1) * VISUAL_SCALE
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
-        normalized_right_pupil = (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) * VISUAL_SCALE
+        normalized_right_pupil = ((right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) + .1) * VISUAL_SCALE
 
         # average
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
         category_avg = ["average"] * len(time)
-        normalized_avg_pupil = (avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) * VISUAL_SCALE
-        edge_avg = ["green"] * len(time)
+        normalized_avg_pupil = ((avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) + .1) * VISUAL_SCALE
+
+        # Pupil labels
         max_index = np.argmax(normalized_avg_pupil)
+        min_index = np.argmin(normalized_avg_pupil)
+        edge_avg = ["green"] * len(time)
         edge_avg[max_index] = "black"
+        edge_avg[min_index] = "black"
         axes.annotate(f'{right_pupil.max():.2f} mm', (time[max_index], category_avg[max_index]),
                       textcoords="offset points", ha='center', va='center', xytext=(0, 15))
+        axes.annotate(f'{right_pupil.min():.2f} mm', (time[min_index], category_avg[min_index]),
+                      textcoords="offset points", ha='center', va='center', xytext=(0, -15))
 
         axes.scatter(time, category_left, s=normalized_left_pupil)
         axes.scatter(time, category_avg, s=normalized_avg_pupil, edgecolors=edge_avg, color="green")
@@ -350,7 +356,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
 
     ax3 = axes.twinx()
 
-    ax3.spines["right"].set_position(("axes", 1.2))
+    ax3.spines["right"].set_position(("axes", 1.1))
 
     color = 'tab:green'
     ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
