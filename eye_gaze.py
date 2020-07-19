@@ -22,7 +22,7 @@ TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
-VISUAL_SCALE = 100  # Scales the dilation dot visually
+VISUAL_SCALE = 200  # Scales the dilation dot visually
 
 
 def main():
@@ -226,12 +226,10 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
-    pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-
-    fig, ax = plt.subplots(2, 2, figsize=(12, 8))
-    line_plot = ax[0][0]
-    dilation_plot = ax[1][0]
-    correlation_plot = ax[0][1]
+    fig, ax = plt.subplots(3, 1, figsize=(12, 8))
+    line_plot = ax[0]
+    dilation_plot = ax[1]
+    correlation_plot = ax[2]
 
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
@@ -255,8 +253,8 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     plt.sca(axes)
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
-    # left
     try:  # a patch for now
+        # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
         normalized_left_pupil = (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) * VISUAL_SCALE
@@ -270,9 +268,14 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
         category_avg = ["average"] * len(time)
         normalized_avg_pupil = (avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) * VISUAL_SCALE
+        edge_avg = ["green"] * len(time)
+        max_index = np.argmax(normalized_avg_pupil)
+        edge_avg[max_index] = "black"
+        axes.annotate(f'{right_pupil.max():.2f} mm', (time[max_index], category_avg[max_index]),
+                      textcoords="offset points", ha='center', va='center', xytext=(0, 15))
 
         axes.scatter(time, category_left, s=normalized_left_pupil)
-        axes.scatter(time, category_avg, s=normalized_avg_pupil)
+        axes.scatter(time, category_avg, s=normalized_avg_pupil, edgecolors=edge_avg, color="green")
         axes.scatter(time, category_right, s=normalized_right_pupil)
     except AttributeError:
         pass
