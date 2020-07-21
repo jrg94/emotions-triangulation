@@ -335,6 +335,36 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
         color="black"
     )
 
+    # Upper left quadrant
+    axes.annotate(
+        "Fast Comprehension\nSimplicity\nImportance\nPossible confusion",
+        (window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[FIXATION_COUNTS].max()),
+        va="top"
+    )
+
+    # Bottom left quadrant
+    axes.annotate(
+        "Fast Comprehension\nSimplicity\nUnimportance",
+        (window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[FIXATION_COUNTS].min()),
+        va="bottom"
+    )
+
+    # Upper right quadrant
+    axes.annotate(
+        "Slow Comprehension\nComplexity\nImportance\nConfusion",
+        (window_metrics[AVERAGE_FIX_DUR].max(), window_metrics[FIXATION_COUNTS].max()),
+        va="top",
+        ha="right"
+    )
+
+    # Bottom right quadrant
+    axes.annotate(
+        "Slow Comprehension\nComplexity\nUnimportance",
+        (window_metrics[AVERAGE_FIX_DUR].max(), window_metrics[FIXATION_COUNTS].min()),
+        va="bottom",
+        ha="right"
+    )
+
 
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
