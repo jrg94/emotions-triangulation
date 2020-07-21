@@ -17,6 +17,7 @@ FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
 FIXATION_COUNTS = "Fixation Counts"
 SPATIAL_DENSITY = "Spatial Density"
+FIXATION_TIME = "Fixation Time"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
@@ -186,12 +187,14 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     windowed_data = fixation_sequence_sans_dupes.resample(WINDOW, on=TIMESTAMP)
     unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
+    fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
     spatial_density = fixation_windows.apply(compute_spatial_density)
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
-        SPATIAL_DENSITY: spatial_density
+        SPATIAL_DENSITY: spatial_density,
+        FIXATION_TIME: fixation_time
     }
     return pd.DataFrame(frame)
 
@@ -365,6 +368,15 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
     ax3.set_ylabel("Spatial Density", color=color, fontsize="large")
     ax3.tick_params(axis="y", labelcolor=color)
+
+    ax4 = axes.twinx()
+
+    ax4.spines["right"].set_position(("axes", 1.2))
+
+    color = 'tab:purple'
+    ax4.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
+    ax4.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
+    ax4.tick_params(axis="y", labelcolor=color)
 
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
