@@ -315,9 +315,12 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
     axes.set_ylabel("Fixation Count", fontsize="large")
 
+    x_mid = (window_metrics[AVERAGE_FIX_DUR].max() + window_metrics[AVERAGE_FIX_DUR].min()) / 2
+    y_mid = (window_metrics[FIXATION_COUNTS].max() + window_metrics[FIXATION_COUNTS].min()) / 2
+
     # Vertical line for quadrants
     axes.plot(
-        [window_metrics[AVERAGE_FIX_DUR].median(), window_metrics[AVERAGE_FIX_DUR].median()],
+        [x_mid, x_mid],
         [window_metrics[FIXATION_COUNTS].min(), window_metrics[FIXATION_COUNTS].max()],
         color="black"
     )
@@ -325,7 +328,7 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     # Horizontal line for quadrants
     axes.plot(
         [window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[AVERAGE_FIX_DUR].max()],
-        [window_metrics[FIXATION_COUNTS].median(), window_metrics[FIXATION_COUNTS].median()],
+        [y_mid, y_mid],
         color="black"
     )
 
