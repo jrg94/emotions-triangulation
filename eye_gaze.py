@@ -8,7 +8,7 @@ import numpy as np
 META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
 GAZE_CALIBRATION_SUMMARY_DETAILS = "table_2"
-DATA = "table_3"
+DATA = "table_1"
 STIMULUS_NAME = "StimulusName"
 AVERAGE_FIX_DUR = "Average Fixation Duration"
 FIXATION_DURATION = "FixationDuration"
@@ -422,14 +422,15 @@ def generate_statistics(tables: dict):
     participant = df.iloc[0]["Name"]
     stimuli = df[STIMULUS_NAME].unique()
     for stimulus in stimuli:
-        stimulus_filter = df[STIMULUS_NAME] == stimulus
-        stimulus_data = df[stimulus_filter]
-        report = summary_report(stimulus, stimulus_data)
-        output_summary_report(report)
-        window_metrics = windowed_metrics(stimulus_data)
-        pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-        pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
-        plot_data(participant, stimulus, window_metrics, pupil_dilation)
+        if stimulus == "MATLAB Session":
+            stimulus_filter = df[STIMULUS_NAME] == stimulus
+            stimulus_data = df[stimulus_filter]
+            report = summary_report(stimulus, stimulus_data)
+            output_summary_report(report)
+            window_metrics = windowed_metrics(stimulus_data)
+            pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+            pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
+            plot_data(participant, stimulus, window_metrics, pupil_dilation)
 
 
 if __name__ == '__main__':
