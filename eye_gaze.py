@@ -257,8 +257,8 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
     fig, ax = plt.subplots(3, 1, figsize=(12, 8))
-    line_plot = ax[0]
-    dilation_plot = ax[1]
+    line_plot = ax[1]
+    dilation_plot = ax[0]
     correlation_plot = ax[2]
 
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
