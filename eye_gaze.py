@@ -399,9 +399,9 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
 
     # Background quadrant colors
     axes.bar(
-        x=(min_fix_dur, min_fix_dur, x_mid, x_mid),
+        x=(x_mid, min_fix_dur, min_fix_dur, x_mid),
         height=y_mid,
-        bottom=(min_fix_count, y_mid, min_fix_count, y_mid),
+        bottom=(y_mid, y_mid, min_fix_count, min_fix_count),
         width=x_mid - min_fix_dur,
         color=get_quadrant_color_map().values(),
         align='edge',
@@ -452,7 +452,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
 
     # Background quadrants
     colors = get_quad_colors(window_metrics[QUADRANTS])
-    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), align="edge", alpha=.3, width=.5, color=colors)
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=.5, color=colors)
 
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
