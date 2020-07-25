@@ -199,6 +199,12 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(frame)
 
 
+def compute_quadrant(windowed_data):
+    mean_fixation_duration_mid = (windowed_data[AVERAGE_FIX_DUR].max() - windowed_data[AVERAGE_FIX_DUR].min()) / 2
+    fixation_count_mid = (windowed_data[FIXATION_COUNTS].max() - windowed_data[FIXATION_COUNTS].min()) / 2
+    # TODO
+
+
 def output_summary_report(metrics: dict, depth: int = 0):
     """
     Dumps a summary report as a string.
