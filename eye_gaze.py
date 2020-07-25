@@ -221,8 +221,10 @@ def compute_quadrant(average_fixation_duration, fixation_counts):
             quadrants.append("Q2")
         elif mean <= mean_fixation_duration_mid and count <= fixation_count_mid:
             quadrants.append("Q3")
-        else:
+        elif mean > mean_fixation_duration_mid and count <= fixation_count_mid:
             quadrants.append("Q4")
+        else:
+            quadrants.append(None)
     return quadrants
 
 
@@ -467,7 +469,7 @@ def get_quadrant_color_map():
 
 
 def get_quad_colors(column):
-    return [get_quadrant_color_map()[value] for value in column]
+    return [get_quadrant_color_map().get(value, "white") for value in column]
 
 
 def generate_statistics(tables: dict):
