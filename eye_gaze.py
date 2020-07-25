@@ -211,15 +211,15 @@ def compute_quadrant(average_fixation_duration, fixation_counts):
     :param fixation_counts: a list of fixation counts
     :return: a list of quadrants
     """
-    mean_fixation_duration_mid = (average_fixation_duration.max() - average_fixation_duration.min()) / 2
-    fixation_count_mid = (fixation_counts.max() - fixation_counts.min()) / 2
+    mean_fixation_duration_mid = (average_fixation_duration.max() + average_fixation_duration.min()) / 2
+    fixation_count_mid = (fixation_counts.max() + fixation_counts.min()) / 2
     quadrants = list()
     for mean, count in zip(average_fixation_duration, fixation_counts):
         if mean > mean_fixation_duration_mid and count > fixation_count_mid:
             quadrants.append("Q1")
-        elif mean < mean_fixation_duration_mid and count > fixation_count_mid:
+        elif mean <= mean_fixation_duration_mid and count > fixation_count_mid:
             quadrants.append("Q2")
-        elif mean < mean_fixation_duration_mid and count < fixation_count_mid:
+        elif mean <= mean_fixation_duration_mid and count <= fixation_count_mid:
             quadrants.append("Q3")
         else:
             quadrants.append("Q4")
