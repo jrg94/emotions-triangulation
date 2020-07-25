@@ -25,7 +25,7 @@ TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
-VISUAL_SCALE = 200  # Scales the dilation dot visually
+VISUAL_SCALE = 190  # Scales the dilation dot visually
 
 
 def main():
@@ -271,7 +271,7 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     plt.show()
 
 
-def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
@@ -282,6 +282,9 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
     """
     plt.sca(axes)
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
+
+    axes.set_title("Pupil Dilation Over Time")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
 
     try:  # a patch for now
         # left
@@ -313,11 +316,14 @@ def generate_pupil_circle_plot(axes, time: np.array, dilation: pd.DataFrame):
         axes.scatter(time, category_left, s=normalized_left_pupil)
         axes.scatter(time, category_avg, s=normalized_avg_pupil, edgecolors=edge_avg, color="green")
         axes.scatter(time, category_right, s=normalized_right_pupil)
+
+        if len(time) != 0:
+            plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
     except AttributeError:
         pass
 
 
-def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
@@ -327,8 +333,6 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
     :return: None
     """
     plt.sca(axes)
-
-    axes.set_title("Pupil Dilation Over Time")
 
     axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
     axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
@@ -350,26 +354,8 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
 
     axes.set_title("Overview of Participant Visual Effort")
 
-    axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS])
-    axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
-    axes.set_ylabel("Fixation Count", fontsize="large")
-
     x_mid = (max_fix_dur + min_fix_dur) / 2
     y_mid = (window_metrics[FIXATION_COUNTS].max() + min_fix_count) / 2
-
-    # Vertical line for quadrants
-    axes.plot(
-        [x_mid, x_mid],
-        [min_fix_count, max_fix_count],
-        color="black"
-    )
-
-    # Horizontal line for quadrants
-    axes.plot(
-        [min_fix_dur, max_fix_dur],
-        [y_mid, y_mid],
-        color="black"
-    )
 
     # Background quadrant colors
     bars = axes.bar(
@@ -379,7 +365,24 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
         width=x_mid - min_fix_dur,
         color=get_quadrant_color_map().values(),
         align='edge',
-        alpha=.3
+        alpha=.3,
+        zorder=1
+    )
+
+    # Vertical line for quadrants
+    axes.plot(
+        [x_mid, x_mid],
+        [min_fix_count, max_fix_count],
+        color="black",
+        zorder=2
+    )
+
+    # Horizontal line for quadrants
+    axes.plot(
+        [min_fix_dur, max_fix_dur],
+        [y_mid, y_mid],
+        color="black",
+        zorder=3
     )
 
     legend = plt.legend(
@@ -396,6 +399,10 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
 
     for lh in legend.legendHandles:
         lh.set_alpha(1)
+
+    axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS], zorder=4)
+    axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
+    axes.set_ylabel("Fixation Count", fontsize="large")
 
 
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
