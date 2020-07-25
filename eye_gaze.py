@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import cm
 
 META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
@@ -18,6 +19,7 @@ FIXATION_Y = "FixationY"
 FIXATION_COUNTS = "Fixation Counts"
 SPATIAL_DENSITY = "Spatial Density"
 FIXATION_TIME = "Fixation Time"
+QUADRANTS = "Quadrants"
 TIMESTAMP = "Timestamp"
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
@@ -190,19 +192,38 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
     spatial_density = fixation_windows.apply(compute_spatial_density)
+    quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
-        FIXATION_TIME: fixation_time
+        FIXATION_TIME: fixation_time,
+        QUADRANTS: quadrants
     }
     return pd.DataFrame(frame)
 
 
-def compute_quadrant(windowed_data):
-    mean_fixation_duration_mid = (windowed_data[AVERAGE_FIX_DUR].max() - windowed_data[AVERAGE_FIX_DUR].min()) / 2
-    fixation_count_mid = (windowed_data[FIXATION_COUNTS].max() - windowed_data[FIXATION_COUNTS].min()) / 2
-    # TODO
+def compute_quadrant(average_fixation_duration, fixation_counts):
+    """
+    Generates a list of quadrants based on correlation.
+
+    :param average_fixation_duration: a list of mean fixation durations
+    :param fixation_counts: a list of fixation counts
+    :return: a list of quadrants
+    """
+    mean_fixation_duration_mid = (average_fixation_duration.max() - average_fixation_duration.min()) / 2
+    fixation_count_mid = (fixation_counts.max() - fixation_counts.min()) / 2
+    quadrants = list()
+    for mean, count in zip(average_fixation_duration, fixation_counts):
+        if mean > mean_fixation_duration_mid and count > fixation_count_mid:
+            quadrants.append("Q1")
+        elif mean < mean_fixation_duration_mid and count > fixation_count_mid:
+            quadrants.append("Q2")
+        elif mean < mean_fixation_duration_mid and count < fixation_count_mid:
+            quadrants.append("Q3")
+        else:
+            quadrants.append("Q4")
+    return quadrants
 
 
 def output_summary_report(metrics: dict, depth: int = 0):
@@ -320,23 +341,28 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
 def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     plt.sca(axes)
 
+    min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()
+    max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()
+    min_fix_count = window_metrics[FIXATION_COUNTS].min()
+    max_fix_count = window_metrics[FIXATION_COUNTS].max()
+
     axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS])
     axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
     axes.set_ylabel("Fixation Count", fontsize="large")
 
-    x_mid = (window_metrics[AVERAGE_FIX_DUR].max() + window_metrics[AVERAGE_FIX_DUR].min()) / 2
-    y_mid = (window_metrics[FIXATION_COUNTS].max() + window_metrics[FIXATION_COUNTS].min()) / 2
+    x_mid = (max_fix_dur + min_fix_dur) / 2
+    y_mid = (window_metrics[FIXATION_COUNTS].max() + min_fix_count) / 2
 
     # Vertical line for quadrants
     axes.plot(
         [x_mid, x_mid],
-        [window_metrics[FIXATION_COUNTS].min(), window_metrics[FIXATION_COUNTS].max()],
+        [min_fix_count, max_fix_count],
         color="black"
     )
 
     # Horizontal line for quadrants
     axes.plot(
-        [window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[AVERAGE_FIX_DUR].max()],
+        [min_fix_dur, max_fix_dur],
         [y_mid, y_mid],
         color="black"
     )
@@ -344,21 +370,21 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     # Upper left quadrant
     axes.annotate(
         "Fast Comprehension\nSimplicity\nImportance\nPossible confusion",
-        (window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[FIXATION_COUNTS].max()),
+        (min_fix_dur, max_fix_count),
         va="top"
     )
 
     # Bottom left quadrant
     axes.annotate(
         "Fast Comprehension\nSimplicity\nUnimportance",
-        (window_metrics[AVERAGE_FIX_DUR].min(), window_metrics[FIXATION_COUNTS].min()),
+        (min_fix_dur, min_fix_count),
         va="bottom"
     )
 
     # Upper right quadrant
     axes.annotate(
         "Slow Comprehension\nComplexity\nImportance\nConfusion",
-        (window_metrics[AVERAGE_FIX_DUR].max(), window_metrics[FIXATION_COUNTS].max()),
+        (max_fix_dur, max_fix_count),
         va="top",
         ha="right"
     )
@@ -366,9 +392,20 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     # Bottom right quadrant
     axes.annotate(
         "Slow Comprehension\nComplexity\nUnimportance",
-        (window_metrics[AVERAGE_FIX_DUR].max(), window_metrics[FIXATION_COUNTS].min()),
+        (max_fix_dur, min_fix_count),
         va="bottom",
         ha="right"
+    )
+
+    # Background quadrant colors
+    axes.bar(
+        x=(min_fix_dur, min_fix_dur, x_mid, x_mid),
+        height=y_mid,
+        bottom=(min_fix_count, y_mid, min_fix_count, y_mid),
+        width=x_mid - min_fix_dur,
+        color=get_quadrant_color_map().values(),
+        align='edge',
+        alpha=.3
     )
 
 
@@ -383,38 +420,56 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     """
     plt.sca(axes)
 
+    # Fixation count plot
     color = 'tab:red'
     axes.plot(time, window_metrics[FIXATION_COUNTS], color=color, linewidth=2)
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Fixation Count", color=color, fontsize="large")
     axes.tick_params(axis='y', labelcolor=color)
 
+    # Mean fixation duration plot
     ax2 = axes.twinx()
-
     color = 'tab:cyan'
     ax2.plot(time, window_metrics[AVERAGE_FIX_DUR], color=color, linewidth=2)
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
 
+    # Spatial density plot
     ax3 = axes.twinx()
-
     ax3.spines["right"].set_position(("axes", 1.1))
-
     color = 'tab:green'
     ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
     ax3.set_ylabel("Spatial Density", color=color, fontsize="large")
     ax3.tick_params(axis="y", labelcolor=color)
 
+    # Fixation time plot
     ax4 = axes.twinx()
-
     ax4.spines["right"].set_position(("axes", 1.2))
-
     color = 'tab:purple'
     ax4.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
     ax4.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
     ax4.tick_params(axis="y", labelcolor=color)
 
+    # Background quadrants
+    colors = get_quad_colors(window_metrics[QUADRANTS])
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), align="edge", alpha=.3, width=.5, color=colors)
+
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
+def get_quadrant_color_map():
+    colors = cm.get_cmap("Pastel1").colors
+    quads = {
+        "Q1": colors[0],
+        "Q2": colors[1],
+        "Q3": colors[2],
+        "Q4": colors[3]
+    }
+    return quads
+
+
+def get_quad_colors(column):
+    return [get_quadrant_color_map()[value] for value in column]
 
 
 def generate_statistics(tables: dict):
