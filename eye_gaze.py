@@ -367,38 +367,8 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
         color="black"
     )
 
-    # Upper left quadrant
-    axes.annotate(
-        "Fast Comprehension\nSimplicity\nImportance\nPossible confusion",
-        (min_fix_dur, max_fix_count),
-        va="top"
-    )
-
-    # Bottom left quadrant
-    axes.annotate(
-        "Fast Comprehension\nSimplicity\nUnimportance",
-        (min_fix_dur, min_fix_count),
-        va="bottom"
-    )
-
-    # Upper right quadrant
-    axes.annotate(
-        "Slow Comprehension\nComplexity\nImportance\nConfusion",
-        (max_fix_dur, max_fix_count),
-        va="top",
-        ha="right"
-    )
-
-    # Bottom right quadrant
-    axes.annotate(
-        "Slow Comprehension\nComplexity\nUnimportance",
-        (max_fix_dur, min_fix_count),
-        va="bottom",
-        ha="right"
-    )
-
     # Background quadrant colors
-    axes.bar(
+    bars = axes.bar(
         x=(x_mid, min_fix_dur, min_fix_dur, x_mid),
         height=y_mid,
         bottom=(y_mid, y_mid, min_fix_count, min_fix_count),
@@ -407,6 +377,21 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
         align='edge',
         alpha=.3
     )
+
+    legend = plt.legend(
+        bars,
+        (
+            "Slow Comprehension\nComplexity\nImportance\nConfusion",
+            "Fast Comprehension\nSimplicity\nImportance\nPossible confusion",
+            "Fast Comprehension\nSimplicity\nUnimportance",
+            "Slow Comprehension\nComplexity\nUnimportance"
+        ),
+        loc='center left',
+        bbox_to_anchor=(1, 0.5)
+    )
+
+    for lh in legend.legendHandles:
+        lh.set_alpha(1)
 
 
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
