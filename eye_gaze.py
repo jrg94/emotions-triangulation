@@ -266,8 +266,8 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     generate_correlation_plot(correlation_plot, window_metrics)
 
     plt.sca(line_plot)
-    plt.title(f'{stimulus}: {participant}')
-    fig.tight_layout()
+    fig.suptitle(f'{stimulus}: {participant}')
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 
@@ -328,6 +328,8 @@ def generate_pupil_dilation_plot(axes, time: np.array, dilation: pd.DataFrame):
     """
     plt.sca(axes)
 
+    axes.set_title("Pupil Dilation Over Time")
+
     axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
     axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
     axes.set_xlabel("Time (minutes)", fontsize="large")
@@ -345,6 +347,8 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()
     min_fix_count = window_metrics[FIXATION_COUNTS].min()
     max_fix_count = window_metrics[FIXATION_COUNTS].max()
+
+    axes.set_title("Overview of Participant Visual Effort")
 
     axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS])
     axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
@@ -404,6 +408,8 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     :return: None
     """
     plt.sca(axes)
+
+    axes.set_title("Eye Gaze Metrics with Visual Effort Transitions Over Time")
 
     # Fixation count plot
     color = 'tab:red'
