@@ -10,17 +10,24 @@ META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
 GAZE_CALIBRATION_SUMMARY_DETAILS = "table_2"
 DATA = "table_1"
+
+# Data column names
 STIMULUS_NAME = "StimulusName"
 AVERAGE_FIX_DUR = "Average Fixation Duration"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
+TIMESTAMP = "Timestamp"
+MOUSE_EVENT = "MouseEvent"
+
+# Analysis column names
 FIXATION_COUNTS = "Fixation Counts"
 SPATIAL_DENSITY = "Spatial Density"
 FIXATION_TIME = "Fixation Time"
 QUADRANTS = "Quadrants"
-TIMESTAMP = "Timestamp"
+CLICK_STREAM = "Click Stream"
+
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
@@ -193,12 +200,14 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
+    click_stream = stimulus_data[[TIMESTAMP, MOUSE_EVENT]].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
         FIXATION_TIME: fixation_time,
-        QUADRANTS: quadrants
+        QUADRANTS: quadrants,
+        CLICK_STREAM: click_stream[:unique_fixation_counts.size]
     }
     return pd.DataFrame(frame)
 
@@ -449,6 +458,14 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax4.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
     ax4.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
     ax4.tick_params(axis="y", labelcolor=color)
+
+    # Click stream plot
+    ax5 = axes.twinx()
+    ax5.spines["right"].set_position(("axes", 1.3))
+    color = 'tab:orange'
+    ax5.plot(time, window_metrics[CLICK_STREAM], color=color, linewidth=2)
+    ax5.set_ylabel("Click Counts", color=color, fontsize="large")
+    ax5.tick_params(axis="y", labelcolor=color)
 
     # Background quadrants
     colors = get_quad_colors(window_metrics[QUADRANTS])
