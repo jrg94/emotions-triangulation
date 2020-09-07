@@ -20,6 +20,7 @@ FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 MOUSE_EVENT = "MouseEvent"
+GSR = "GSR CAL (kOhms) (Shimmer)"
 
 # Analysis column names
 FIXATION_COUNTS = "Fixation Counts"
@@ -96,6 +97,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[FIXATION_Y] = pd.to_numeric(data[FIXATION_Y])
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
+    data[GSR] = pd.to_numeric(data[GSR])
     return data
 
 
@@ -254,24 +256,30 @@ def output_summary_report(metrics: dict, depth: int = 0):
             print(f'{indent}{k}: {v}')
 
 
-def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilation: pd.DataFrame):
+def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     """
-    Plots the fixation count and average fixation duration data.
+    Plots eye gaze and EDA data.
 
-    :param window_metrics: a set of windowed metrics for plotting
     :param participant: the name of the participant
     :param stimulus: the current stimulus used as the plot title
-    :param pupil_dilation: a dataframe of pupil information
+    :param stimulus_data: all raw data
     :return: None
     """
+    window_metrics = windowed_metrics(stimulus_data)
+
+    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
+
     fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
     fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
 
-    fig, ax = plt.subplots(3, 1, figsize=(12, 8))
+    fig, ax = plt.subplots(4, 1, figsize=(12, 8))
     line_plot = ax[1]
     dilation_plot = ax[0]
     correlation_plot = ax[2]
+    gsr_plot = ax[3]
 
+    generate_gsr_plot(gsr_plot, stimulus_data)
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
@@ -280,6 +288,16 @@ def plot_data(participant, stimulus, window_metrics: pd.DataFrame, pupil_dilatio
     fig.suptitle(f'{stimulus}: {participant}')
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
+
+
+def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    plt.sca(axes)
+    axes.set_title("GSR Over Time")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("GSR (kOhms)", fontsize="large")
+
+    axes.plot(stimulus_data[TIMESTAMP], stimulus_data[GSR])
+    print(stimulus_data[GSR])
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
@@ -505,10 +523,7 @@ def generate_statistics(tables: dict):
             stimulus_data = df[stimulus_filter]
             report = summary_report(stimulus, stimulus_data)
             output_summary_report(report)
-            window_metrics = windowed_metrics(stimulus_data)
-            pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-            pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
-            plot_data(participant, stimulus, window_metrics, pupil_dilation)
+            plot_data(participant, stimulus, stimulus_data)
 
 
 if __name__ == '__main__':
