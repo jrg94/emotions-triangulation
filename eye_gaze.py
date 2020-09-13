@@ -342,7 +342,7 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
-        normalized_left_pupil Rsm0yQTHI#376axwS$vLTuHUs*q5Vq= normalize_column(left_pupil)
+        normalized_left_pupil = normalize_column(left_pupil)
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
@@ -367,6 +367,12 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
 
 
 def normalize_column(column: pd.Series) -> pd.Series:
+    """
+    Normalizes a column of data and applies a visual scale to it.
+
+    :param column: a column of numeric data
+    :return: a normalized column of data
+    """
     return ((column - column.min()) / (column.max() - column.min()) + .1) * VISUAL_SCALE
 
 
