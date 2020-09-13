@@ -286,19 +286,23 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     pupil_time = pupil_time - pupil_time.min()
 
     # All fixation data
-    fig_fixation, ax_fixation = plt.subplots(2, 1, figsize=(12, 8))
+    fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
+    fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.canvas.set_window_title("Eye Gaze Analysis")
-    line_plot = ax_fixation[0]
-    correlation_plot = ax_fixation[1]
+    line_plot = ax_fixation[1]
+    correlation_plot = ax_fixation[0]
+    aux_plot = ax_fixation[2]
 
     # All pupil data
-    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 8))
+    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
+    fig_dilation.suptitle(f'{stimulus}: {participant}')
     fig_dilation.canvas.set_window_title("Pupil Analysis")
     dilation_plot = ax_dilation[0]
     raw_dilation_plot = ax_dilation[1]
 
     # All EDA data
-    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 8))
+    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 4))
+    fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
     eda_plot = ax_eda
 
@@ -308,12 +312,12 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
     generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
+    generate_auxilary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
 
     # Manage plots
     plt.sca(line_plot)
-    fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.tight_layout(rect=[0, 0.03, 1, 0.95])
-    fig_dilation.tight_layout()
+    fig_dilation.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 
@@ -326,10 +330,14 @@ def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     :return: None
     """
     plt.sca(axes)
+    time = (stimulus_data[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
+    time = time - time.min()
     axes.set_title("GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("GSR (kOhms)", fontsize="large")
-    axes.plot(stimulus_data[TIMESTAMP], stimulus_data[GSR])
+    axes.plot(time, stimulus_data[GSR])
+    if len(time) != 0:
+        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
@@ -547,6 +555,36 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     axes.set_ylabel("Fixation Count", fontsize="large")
 
 
+def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+    """
+    Plots eye gaze metrics that may assist in triangulation.
+
+    :param axes: the axes to plot on
+    :param time: the time axes
+    :param window_metrics: the windowed dataframe
+    :return: None
+    """
+    plt.sca(axes)
+
+    axes.set_title("Auxilary Eye Gaze Metrics Over Time")
+
+    # Spatial density plot
+    color = 'tab:red'
+    axes.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Spatial Density", color=color, fontsize="large")
+    axes.tick_params(axis="y", labelcolor=color)
+
+    # Fixation time plot
+    ax2 = axes.twinx()
+    color = 'tab:cyan'
+    ax2.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
+    ax2.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
+    ax2.tick_params(axis="y", labelcolor=color)
+
+    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
     A handy method for generating the fixation plot.
@@ -574,29 +612,13 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
 
-    # Spatial density plot
+    # Click stream plot
     ax3 = axes.twinx()
     ax3.spines["right"].set_position(("axes", 1.1))
-    color = 'tab:green'
-    ax3.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
-    ax3.set_ylabel("Spatial Density", color=color, fontsize="large")
-    ax3.tick_params(axis="y", labelcolor=color)
-
-    # Fixation time plot
-    ax4 = axes.twinx()
-    ax4.spines["right"].set_position(("axes", 1.2))
-    color = 'tab:purple'
-    ax4.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
-    ax4.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
-    ax4.tick_params(axis="y", labelcolor=color)
-
-    # Click stream plot
-    ax5 = axes.twinx()
-    ax5.spines["right"].set_position(("axes", 1.3))
     color = 'tab:orange'
-    ax5.plot(time, window_metrics[CLICK_STREAM], color=color, linewidth=2)
-    ax5.set_ylabel("Click Counts", color=color, fontsize="large")
-    ax5.tick_params(axis="y", labelcolor=color)
+    ax3.plot(time, window_metrics[CLICK_STREAM], color=color, linewidth=2)
+    ax3.set_ylabel("Click Counts", color=color, fontsize="large")
+    ax3.tick_params(axis="y", labelcolor=color)
 
     # Background quadrants
     colors = get_quad_colors(window_metrics[QUADRANTS])
