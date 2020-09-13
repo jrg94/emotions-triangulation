@@ -1,9 +1,9 @@
 import csv
 import sys
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib import cm
 
 META_DATA = "table_0"
@@ -37,6 +37,11 @@ VISUAL_SCALE = 190  # Scales the dilation dot visually
 
 
 def main():
+    """
+    The main drop in function for the program.
+
+    :return: None
+    """
     if len(sys.argv) > 1:
         paths = sys.argv[1:]
         participants = read_tsv_files(*paths)
@@ -123,7 +128,7 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     start_date_time = stimulus_data.iloc[0][TIMESTAMP]
     end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
     pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
+    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
     pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
     pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
     pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
@@ -199,10 +204,12 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
     fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
-    fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]] 
+    fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
-    click_stream = stimulus_data[[TIMESTAMP, MOUSE_EVENT]].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
+    click_stream = stimulus_data[
+        [TIMESTAMP, MOUSE_EVENT]
+    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
@@ -334,12 +341,16 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
-        normalized_left_pupil = ((left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) + .1) * VISUAL_SCALE
+        normalized_left_pupil = (
+            (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) + .1
+        ) * VISUAL_SCALE
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
-        normalized_right_pupil = ((right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) + .1) * VISUAL_SCALE
+        normalized_right_pupil = (
+            (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) + .1
+        ) * VISUAL_SCALE
 
         # average
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
@@ -389,6 +400,13 @@ def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.Da
 
 
 def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
+    """
+    Creates plot that demonstrates correlation between fixation counts and average fixation duration.
+
+    :param axes: the axes to plot on
+    :param window_metrics: the pre-cleaned data
+    :return: None
+    """
     plt.sca(axes)
 
     min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()
@@ -508,6 +526,11 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
 
 
 def get_quadrant_color_map():
+    """
+    Generates the color map for the correlation plot.
+
+    :return: a dictionary of colors depending on quadrant
+    """
     colors = cm.get_cmap("Pastel1").colors
     quads = {
         "Q1": colors[0],
@@ -518,7 +541,14 @@ def get_quadrant_color_map():
     return quads
 
 
-def get_quad_colors(column):
+def get_quad_colors(column: pd.Series):
+    """
+    Given a column of data, this function will generate a list of colors.
+    Specifically, quadrant labels are mapped to colors.
+
+    :param column: a column of quadrant labels
+    :return: a list of colors
+    """
     return [get_quadrant_color_map().get(value, "white") for value in column]
 
 
