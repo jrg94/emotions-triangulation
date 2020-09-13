@@ -1,5 +1,6 @@
 import csv
 import sys
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -341,16 +342,12 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         # left
         left_pupil = windowed_data.mean()[PUPIL_LEFT]
         category_left = ["left"] * len(time)
-        normalized_left_pupil = (
-            (left_pupil - left_pupil.min()) / (left_pupil.max() - left_pupil.min()) + .1
-        ) * VISUAL_SCALE
+        normalized_left_pupil Rsm0yQTHI#376axwS$vLTuHUs*q5Vq= normalize_column(left_pupil)
 
         # right
         right_pupil = windowed_data.mean()[PUPIL_RIGHT]
         category_right = ["right"] * len(time)
-        normalized_right_pupil = (
-            (right_pupil - right_pupil.min()) / (right_pupil.max() - right_pupil.min()) + .1
-        ) * VISUAL_SCALE
+        normalized_right_pupil = normalize_column(right_pupil)
 
         # average
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
@@ -358,24 +355,90 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         normalized_avg_pupil = ((avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) + .1) * VISUAL_SCALE
 
         # Pupil labels
-        max_index = np.argmax(normalized_avg_pupil)
-        min_index = np.argmin(normalized_avg_pupil)
-        edge_avg = ["green"] * len(time)
-        edge_avg[max_index] = "black"
-        edge_avg[min_index] = "black"
-        axes.annotate(f'{right_pupil.max():.2f} mm', (time[max_index], category_avg[max_index]),
-                      textcoords="offset points", ha='center', va='center', xytext=(0, 15))
-        axes.annotate(f'{right_pupil.min():.2f} mm', (time[min_index], category_avg[min_index]),
-                      textcoords="offset points", ha='center', va='center', xytext=(0, -15))
-
-        axes.scatter(time, category_left, s=normalized_left_pupil)
-        axes.scatter(time, category_avg, s=normalized_avg_pupil, edgecolors=edge_avg, color="green")
-        axes.scatter(time, category_right, s=normalized_right_pupil)
+        label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0")
+        label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1")
+        label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2")
 
         if len(time) != 0:
             plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        print("Something broke while rendering pupil data")
+        print(e)
+
+
+def normalize_column(column: pd.Series) -> pd.Series:
+    return ((column - column.min()) / (column.max() - column.min()) + .1) * VISUAL_SCALE
+
+
+def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.array, category: list) -> pd.DataFrame:
+    """
+    A helper function for merging seemingly unrelated pupil data sources into a single data frame.
+    This function exists to assist with pupil labeling.
+
+    :param norm_column: the normalized pupil data
+    :param raw_column: the raw pupil data
+    :param time: the time stamps in minutes
+    :param category: the category data for the y-axis (e.g. left, average, right)
+    :return: a data frame containing all of this data
+    """
+    return pd.DataFrame(
+        data={"Normalized": norm_column, "Raw": raw_column, "Category": category, "Time": time}
+    )
+
+
+def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str):
+    """
+    A pupil labeling procedure which leverages pupil data to apply annotations.
+    In particular, this function labels the min and max dots in a scatter plot
+    with an annotation and a dark outline.
+
+    :param pupil_data: a special dataframe of pupil data
+    :param axes: the axes to plot on
+    :param color: the color of the scatter plot dots
+    :return: None
+    """
+    edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
+    axes.annotate(
+        f'{pupil_data["Raw"].max():.2f} mm',
+        (pupil_data["Time"][edge_data[1]], pupil_data["Category"][edge_data[1]]),
+        textcoords="offset points",
+        ha='center',
+        va='center',
+        xytext=(0, 15)
+    )
+    axes.annotate(
+        f'{pupil_data["Raw"].min():.2f} mm',
+        (pupil_data["Time"][edge_data[0]], pupil_data["Category"][edge_data[0]]),
+        textcoords="offset points",
+        ha='center',
+        va='center',
+        xytext=(0, -15)
+    )
+    # noinspection PyTypeChecker
+    axes.scatter(
+        pupil_data["Time"],
+        pupil_data["Category"],
+        s=pupil_data["Normalized"],
+        edgecolors=edge_data[2],
+        color=color
+    )
+
+
+def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int, list]:
+    """
+    A helper function for generating min/max edge colors for scatter plot.
+
+    :param column: a series of numeric data points
+    :param color: the color of the edge
+    :return:
+    """
+    column_list = column.tolist()
+    max_index: int = column_list.index(max(column_list))
+    min_index: int = column_list.index(min(column_list))
+    edge_colors = [color] * len(column)
+    edge_colors[max_index] = "black"
+    edge_colors[min_index] = "black"
+    return min_index, max_index, edge_colors
 
 
 def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
@@ -525,7 +588,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
-def get_quadrant_color_map():
+def get_quadrant_color_map() -> dict:
     """
     Generates the color map for the correlation plot.
 
@@ -541,7 +604,7 @@ def get_quadrant_color_map():
     return quads
 
 
-def get_quad_colors(column: pd.Series):
+def get_quad_colors(column: pd.Series) -> list:
     """
     Given a column of data, this function will generate a list of colors.
     Specifically, quadrant labels are mapped to colors.
