@@ -284,15 +284,12 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     fixation_time = fixation_time - fixation_time.min()
     pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
     pupil_time = pupil_time - pupil_time.min()
-    print(pupil_dilation)
-    print(pupil_time)
 
     # All fixation data
-    fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
+    fig_fixation, ax_fixation = plt.subplots(2, 1, figsize=(12, 8))
     fig_fixation.canvas.set_window_title("Eye Gaze Analysis")
     line_plot = ax_fixation[0]
     correlation_plot = ax_fixation[1]
-    gsr_plot = ax_fixation[2]
 
     # All pupil data
     fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 8))
@@ -300,8 +297,13 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     dilation_plot = ax_dilation[0]
     raw_dilation_plot = ax_dilation[1]
 
+    # All EDA data
+    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 8))
+    fig_eda.canvas.set_window_title("EDA Analysis")
+    eda_plot = ax_eda
+
     # Generate various plots
-    generate_gsr_plot(gsr_plot, stimulus_data)
+    generate_gsr_plot(eda_plot, stimulus_data)
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
