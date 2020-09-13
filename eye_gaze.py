@@ -280,8 +280,12 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
 
     # Convert date to time in minutes
-    fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60
+    fixation_time = (window_metrics.index.astype(np.int64) / 10 ** 9) / 60
     fixation_time = fixation_time - fixation_time.min()
+    pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
+    pupil_time = pupil_time - pupil_time.min()
+    print(pupil_dilation)
+    print(pupil_time)
 
     # All fixation data
     fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
@@ -291,20 +295,23 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     gsr_plot = ax_fixation[2]
 
     # All pupil data
-    fig_dilation, ax_dilation = plt.subplots(1, 1, figsize=(12, 8))
+    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 8))
     fig_dilation.canvas.set_window_title("Pupil Analysis")
-    dilation_plot = ax_dilation
+    dilation_plot = ax_dilation[0]
+    raw_dilation_plot = ax_dilation[1]
 
     # Generate various plots
     generate_gsr_plot(gsr_plot, stimulus_data)
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
+    generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
 
     # Manage plots
     plt.sca(line_plot)
     fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig_dilation.tight_layout()
     plt.show()
 
 
@@ -335,7 +342,7 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
     plt.sca(axes)
     windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
-    axes.set_title("Pupil Dilation Over Time")
+    axes.set_title("Mean Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
 
     try:  # a patch for now
@@ -355,9 +362,9 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         normalized_avg_pupil = ((avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) + .1) * VISUAL_SCALE
 
         # Pupil labels
-        label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0")
-        label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1")
-        label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2")
+        label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
+        label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
+        label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
 
         if len(time) != 0:
             plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
@@ -392,7 +399,7 @@ def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.arr
     )
 
 
-def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str):
+def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: tuple):
     """
     A pupil labeling procedure which leverages pupil data to apply annotations.
     In particular, this function labels the min and max dots in a scatter plot
@@ -401,6 +408,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str):
     :param pupil_data: a special dataframe of pupil data
     :param axes: the axes to plot on
     :param color: the color of the scatter plot dots
+    :param xytext: the offset for the label
     :return: None
     """
     edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
@@ -410,7 +418,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str):
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=(0, 15)
+        xytext=xytext
     )
     axes.annotate(
         f'{pupil_data["Raw"].min():.2f} mm',
@@ -418,7 +426,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str):
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=(0, -15)
+        xytext=xytext
     )
     # noinspection PyTypeChecker
     axes.scatter(
@@ -460,6 +468,7 @@ def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.Da
 
     axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
     axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
+    axes.set_title("Raw Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
     axes.legend()
