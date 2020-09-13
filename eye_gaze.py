@@ -287,11 +287,13 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     fig_dilation.canvas.set_window_title("Pupil Analysis")
     dilation_plot = ax_dilation
 
+    # Generate various plots
     generate_gsr_plot(gsr_plot, stimulus_data)
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
 
+    # Manage plots
     plt.sca(line_plot)
     fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -299,13 +301,18 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
 
 
 def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    """
+    Plots Galvanic Skin Response (GSR) data (aka EDA)
+
+    :param axes: the axis to plot on
+    :param stimulus_data: the data to use for plotting
+    :return: None
+    """
     plt.sca(axes)
     axes.set_title("GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("GSR (kOhms)", fontsize="large")
-
     axes.plot(stimulus_data[TIMESTAMP], stimulus_data[GSR])
-    print(stimulus_data[GSR])
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
