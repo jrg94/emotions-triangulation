@@ -267,17 +267,25 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     """
     window_metrics = windowed_metrics(stimulus_data)
 
+    # Retrieve and clean pupil data
     pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]  # removes rows which have no data
+    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
 
-    fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60  # Converts datetime to minutes
-    fixation_time = fixation_time - fixation_time.min()  # Scales minutes back to 0
+    # Convert date to time in minutes
+    fixation_time = (window_metrics[FIXATION_COUNTS].index.astype(np.int64) / 10 ** 9) / 60
+    fixation_time = fixation_time - fixation_time.min()
 
-    fig, ax = plt.subplots(4, 1, figsize=(12, 8))
-    line_plot = ax[1]
-    dilation_plot = ax[0]
-    correlation_plot = ax[2]
-    gsr_plot = ax[3]
+    # All fixation data
+    fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
+    fig_fixation.canvas.set_window_title("Eye Gaze Analysis")
+    line_plot = ax_fixation[0]
+    correlation_plot = ax_fixation[1]
+    gsr_plot = ax_fixation[2]
+
+    # All pupil data
+    fig_dilation, ax_dilation = plt.subplots(1, 1, figsize=(12, 8))
+    fig_dilation.canvas.set_window_title("Pupil Analysis")
+    dilation_plot = ax_dilation
 
     generate_gsr_plot(gsr_plot, stimulus_data)
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
@@ -285,8 +293,8 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     generate_correlation_plot(correlation_plot, window_metrics)
 
     plt.sca(line_plot)
-    fig.suptitle(f'{stimulus}: {participant}')
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig_fixation.suptitle(f'{stimulus}: {participant}')
+    fig_fixation.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 
