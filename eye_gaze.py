@@ -1,6 +1,6 @@
 import csv
 import sys
-from typing import Tuple
+from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -273,19 +273,61 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     :param stimulus_data: all raw data
     :return: None
     """
-    window_metrics = windowed_metrics(stimulus_data)
 
-    # Retrieve and clean pupil data
+    figures: List[plt.Figure] = [
+        plot_eye_gaze_data(stimulus, participant, stimulus_data),
+        plot_pupil_data(stimulus, participant, stimulus_data),
+        plot_eda_data(stimulus, participant, stimulus_data)
+    ]
+
+    # Tried to be slick, but maps don't actually execute the function until after some transformation...
+    list(map(lambda fig: fig.tight_layout(rect=[0, 0.03, 1, 0.95]), figures))
+
+    # Manage plots
+    plt.show()
+
+
+def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    # Setup figure
+    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 4))
+    fig_eda.suptitle(f'{stimulus}: {participant}')
+    fig_eda.canvas.set_window_title("EDA Analysis")
+    eda_plot = ax_eda
+
+    # Plot
+    generate_gsr_plot(eda_plot, stimulus_data)
+
+    return fig_eda
+
+
+def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    # Setup data
     pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
     pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
+    pupil_time = convert_date_to_time(pupil_dilation[TIMESTAMP])
+    window_metrics = windowed_metrics(stimulus_data)
+    fixation_time = convert_date_to_time(window_metrics.index)
 
-    # Convert date to time in minutes
-    fixation_time = (window_metrics.index.astype(np.int64) / 10 ** 9) / 60
-    fixation_time = fixation_time - fixation_time.min()
-    pupil_time = (pupil_dilation[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-    pupil_time = pupil_time - pupil_time.min()
+    # Setup figure
+    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
+    fig_dilation.suptitle(f'{stimulus}: {participant}')
+    fig_dilation.canvas.set_window_title("Pupil Analysis")
+    dilation_plot = ax_dilation[0]
+    raw_dilation_plot = ax_dilation[1]
 
-    # All fixation data
+    # Plot
+    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
+    generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
+
+    return fig_dilation
+
+
+def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    # Setup data
+    window_metrics = windowed_metrics(stimulus_data)
+    fixation_time = convert_date_to_time(window_metrics.index)
+
+    # Setup figure
     fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
     fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.canvas.set_window_title("Eye Gaze Analysis")
@@ -293,32 +335,24 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     correlation_plot = ax_fixation[0]
     aux_plot = ax_fixation[2]
 
-    # All pupil data
-    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
-    fig_dilation.suptitle(f'{stimulus}: {participant}')
-    fig_dilation.canvas.set_window_title("Pupil Analysis")
-    dilation_plot = ax_dilation[0]
-    raw_dilation_plot = ax_dilation[1]
-
-    # All EDA data
-    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 4))
-    fig_eda.suptitle(f'{stimulus}: {participant}')
-    fig_eda.canvas.set_window_title("EDA Analysis")
-    eda_plot = ax_eda
-
-    # Generate various plots
-    generate_gsr_plot(eda_plot, stimulus_data)
+    # Plot
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
-    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
     generate_correlation_plot(correlation_plot, window_metrics)
-    generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
     generate_auxilary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
 
-    # Manage plots
-    plt.sca(line_plot)
-    fig_fixation.tight_layout(rect=[0, 0.03, 1, 0.95])
-    fig_dilation.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    return fig_fixation
+
+
+def convert_date_to_time(date: pd.Series) -> pd.Series:
+    """
+    A helper function which converts a series of dates to a series of times in minutes.
+
+    :param date: a series of dates
+    :return: a series of times in minutes
+    """
+    time = (date.astype(np.int64) / 10 ** 9) / 60
+    time = time - time.min()
+    return time
 
 
 def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
