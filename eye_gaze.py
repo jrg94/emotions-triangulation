@@ -277,13 +277,32 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     figures: List[plt.Figure] = [
         plot_eye_gaze_data(stimulus, participant, stimulus_data),
         plot_pupil_data(stimulus, participant, stimulus_data),
-        plot_eda_data(stimulus, participant, stimulus_data)
+        plot_eda_data(stimulus, participant, stimulus_data),
+        plot_click_stream_data(stimulus, participant, stimulus_data)
     ]
 
     for fig in figures:
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     plt.show()
+
+
+def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
+
+    # Setup data
+    window_metrics = windowed_metrics(stimulus_data)
+    fixation_time = convert_date_to_time(window_metrics.index)
+
+    # Setup figure
+    fig_click, ax_click = plt.subplots(1, 1, figsize=(12, 4))
+    fig_click.suptitle(f'{stimulus}: {participant}')
+    fig_click.canvas.set_window_title("Click Stream Analysis")
+    click_stream_plot = ax_click
+
+    # Plot
+    generate_click_stream_plot(click_stream_plot, fixation_time, window_metrics)
+
+    return fig_click
 
 
 def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
@@ -369,18 +388,6 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     return fig_fixation
 
 
-def convert_date_to_time(date: pd.Series) -> pd.Series:
-    """
-    A helper function which converts a series of dates to a series of times in minutes.
-
-    :param date: a series of dates
-    :return: a series of times in minutes
-    """
-    time = (date.astype(np.int64) / 10 ** 9) / 60
-    time = time - time.min()
-    return time
-
-
 def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     Plots Galvanic Skin Response (GSR) data (aka EDA)
@@ -441,71 +448,6 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
     except AttributeError as e:
         print("Something broke while rendering pupil data")
         print(e)
-
-
-def normalize_column(column: pd.Series) -> pd.Series:
-    """
-    Normalizes a column of data and applies a visual scale to it.
-
-    :param column: a column of numeric data
-    :return: a normalized column of data
-    """
-    return ((column - column.min()) / (column.max() - column.min()) + .1) * VISUAL_SCALE
-
-
-def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.array, category: list) -> pd.DataFrame:
-    """
-    A helper function for merging seemingly unrelated pupil data sources into a single data frame.
-    This function exists to assist with pupil labeling.
-
-    :param norm_column: the normalized pupil data
-    :param raw_column: the raw pupil data
-    :param time: the time stamps in minutes
-    :param category: the category data for the y-axis (e.g. left, average, right)
-    :return: a data frame containing all of this data
-    """
-    return pd.DataFrame(
-        data={"Normalized": norm_column, "Raw": raw_column, "Category": category, "Time": time}
-    )
-
-
-def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: tuple):
-    """
-    A pupil labeling procedure which leverages pupil data to apply annotations.
-    In particular, this function labels the min and max dots in a scatter plot
-    with an annotation and a dark outline.
-
-    :param pupil_data: a special dataframe of pupil data
-    :param axes: the axes to plot on
-    :param color: the color of the scatter plot dots
-    :param xytext: the offset for the label
-    :return: None
-    """
-    edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
-    axes.annotate(
-        f'{pupil_data["Raw"].max():.2f} mm',
-        (pupil_data["Time"][edge_data[1]], pupil_data["Category"][edge_data[1]]),
-        textcoords="offset points",
-        ha='center',
-        va='center',
-        xytext=xytext
-    )
-    axes.annotate(
-        f'{pupil_data["Raw"].min():.2f} mm',
-        (pupil_data["Time"][edge_data[0]], pupil_data["Category"][edge_data[0]]),
-        textcoords="offset points",
-        ha='center',
-        va='center',
-        xytext=xytext
-    )
-    # noinspection PyTypeChecker
-    axes.scatter(
-        pupil_data["Time"],
-        pupil_data["Category"],
-        s=pupil_data["Normalized"],
-        edgecolors=edge_data[2],
-        color=color
-    )
 
 
 def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int, list]:
@@ -672,19 +614,107 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
     ax2.tick_params(axis='y', labelcolor=color)
 
-    # Click stream plot
-    ax3 = axes.twinx()
-    ax3.spines["right"].set_position(("axes", 1.1))
-    color = 'tab:orange'
-    ax3.plot(time, window_metrics[CLICK_STREAM], color=color, linewidth=2)
-    ax3.set_ylabel("Click Counts", color=color, fontsize="large")
-    ax3.tick_params(axis="y", labelcolor=color)
-
     # Background quadrants
     colors = get_quad_colors(window_metrics[QUADRANTS])
     axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=.5, color=colors)
 
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
+def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+    """
+    Generates a line plot of all click stream related data.
+
+    :param axes: the axes to plot on
+    :param time: the time series
+    :param window_metrics: the windowed data
+    :return: None
+    """
+    plt.sca(axes)
+
+    axes.plot(time, window_metrics[CLICK_STREAM], linewidth=2)
+    axes.set_title("Mouse Events Over Time", fontsize="large")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Click Counts", fontsize="large")
+
+    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
+def convert_date_to_time(date: pd.Series) -> pd.Series:
+    """
+    A helper function which converts a series of dates to a series of times in minutes.
+
+    :param date: a series of dates
+    :return: a series of times in minutes
+    """
+    time = (date.astype(np.int64) / 10 ** 9) / 60
+    time = time - time.min()
+    return time
+
+
+def normalize_column(column: pd.Series) -> pd.Series:
+    """
+    Normalizes a column of data and applies a visual scale to it.
+
+    :param column: a column of numeric data
+    :return: a normalized column of data
+    """
+    return ((column - column.min()) / (column.max() - column.min()) + .1) * VISUAL_SCALE
+
+
+def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.array, category: list) -> pd.DataFrame:
+    """
+    A helper function for merging seemingly unrelated pupil data sources into a single data frame.
+    This function exists to assist with pupil labeling.
+
+    :param norm_column: the normalized pupil data
+    :param raw_column: the raw pupil data
+    :param time: the time stamps in minutes
+    :param category: the category data for the y-axis (e.g. left, average, right)
+    :return: a data frame containing all of this data
+    """
+    return pd.DataFrame(
+        data={"Normalized": norm_column, "Raw": raw_column, "Category": category, "Time": time}
+    )
+
+
+def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: tuple):
+    """
+    A pupil labeling procedure which leverages pupil data to apply annotations.
+    In particular, this function labels the min and max dots in a scatter plot
+    with an annotation and a dark outline.
+
+    :param pupil_data: a special dataframe of pupil data
+    :param axes: the axes to plot on
+    :param color: the color of the scatter plot dots
+    :param xytext: the offset for the label
+    :return: None
+    """
+    edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
+    axes.annotate(
+        f'{pupil_data["Raw"].max():.2f} mm',
+        (pupil_data["Time"][edge_data[1]], pupil_data["Category"][edge_data[1]]),
+        textcoords="offset points",
+        ha='center',
+        va='center',
+        xytext=xytext
+    )
+    axes.annotate(
+        f'{pupil_data["Raw"].min():.2f} mm',
+        (pupil_data["Time"][edge_data[0]], pupil_data["Category"][edge_data[0]]),
+        textcoords="offset points",
+        ha='center',
+        va='center',
+        xytext=xytext
+    )
+    # noinspection PyTypeChecker
+    axes.scatter(
+        pupil_data["Time"],
+        pupil_data["Category"],
+        s=pupil_data["Normalized"],
+        edgecolors=edge_data[2],
+        color=color
+    )
 
 
 def get_quadrant_color_map() -> dict:
