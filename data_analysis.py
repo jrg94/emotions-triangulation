@@ -37,17 +37,7 @@ PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 190  # Scales the dilation dot visually
 
 
-def main():
-    """
-    The main drop in function for the program.
-
-    :return: None
-    """
-    if len(sys.argv) > 1:
-        paths = sys.argv[1:]
-        participants = read_tsv_files(*paths)
-        for participant in paths:
-            generate_statistics(participants[participant])
+# DATA LOADING -----------------------------------------------------------------------
 
 
 def read_tsv_files(*paths) -> dict:
@@ -107,161 +97,26 @@ def clean_data(tables: dict) -> pd.DataFrame:
     return data
 
 
-def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
+# DATA ANALYSIS ---------------------------------------------------------------
+
+
+def analyze_data(tables: dict):
     """
-    Generates a summary report of the data for a given stimuli.
+    Generates various statistics for a participant.
 
-    :param stimulus: a stimulus like MATLAB
-    :param stimulus_data: the section of the data only relevant to the stimulus
-    :return: a summary report as a dictionary
-    """
-    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    fixation_sequence: pd.Series = fixation_sequence_sans_dupes[FIXATION_SEQUENCE]
-    fixation_duration: pd.Series = fixation_sequence_sans_dupes[FIXATION_DURATION]
-    fixation_sequence_length = fixation_sequence.max()
-    fixation_sequence_duration = fixation_duration.sum()
-    seconds = fixation_sequence_duration / 1000
-    fixation_duration_mean = fixation_duration.mean()
-    fixation_duration_median = fixation_duration.median()
-    fixation_duration_min = fixation_duration.min()
-    fixation_duration_max = fixation_duration.max()
-    fixation_duration_std = fixation_duration.std()
-    start_date_time = stimulus_data.iloc[0][TIMESTAMP]
-    end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
-    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
-    pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
-    pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
-    pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
-    pupil_dilation_max = pupil_dilation[PUPIL_LEFT].max(), pupil_dilation[PUPIL_RIGHT].max()
-    return {
-        f"{stimulus} ({stimulus_data['Name'].iloc[0]})": {
-            "Stimulus Metrics": {
-                "Start time": start_date_time,
-                "End time": end_date_time,
-                "Duration": end_date_time - start_date_time
-            },
-            "Fixation Sequence Metrics": {
-                "Number of Points": fixation_sequence_length,
-                "Duration (seconds)": seconds
-            },
-            "Fixation Duration Metrics": {
-                "Mean (ms)": fixation_duration_mean,
-                "Median (ms)": fixation_duration_median,
-                "Standard Deviation (ms)": fixation_duration_std,
-                "Minimum (ms)": fixation_duration_min,
-                "Maximum (ms)": fixation_duration_max
-            },
-            "Pupil Metrics": {
-                "Mean Left/Right (mm)": pupil_dilation_mean,
-                "Median Left/Right (mm)": pupil_dilation_median,
-                "Min Left/Right (mm)": pupil_dilation_min,
-                "Max Left/Right (mm)": pupil_dilation_max
-            }
-        }
-    }
-
-
-def grid_index(x: int, y: int) -> int:
-    """
-    Given the x and y coordinates of the screen, this function returns the index of the cell
-    that the point occupies. Currently, this function is hardcoded for a 10x10 grid and
-    a 2560x1440 screen. If x and y coordinates are not valid, this function returns -1.
-    Indices are numbered between 0 and 99.
-
-    :param x: the x position of a pixel
-    :param y: the y position of a pixel
-    :return: the index of that pixel with a 10x10 grid
-    """
-    if not np.isnan(x) and not np.isnan(y):
-        row = int(x / 2560 * 10)
-        col = int(y / 1440 * 10)
-        return row + col * 10
-    return -1
-
-
-def compute_spatial_density(df: pd.DataFrame) -> float:
-    """
-    Given a set of fixation points, this function returns the spatial density. In other words,
-    the ratio of grid points that are occupied by fixation points.
-
-    :param df: a dataframe containing fixation points
-    :return: a ratio
-    """
-    points = [index for x, y in zip(df[FIXATION_X], df[FIXATION_Y]) if (index := grid_index(x, y)) >= 0]
-    count = len(np.unique(points))
-    return count / 100
-
-
-def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Computes fixation counts and average fixation duration within some window of time.
-
-    :param stimulus_data: the section of the data only relevant to the stimulus
-    :return: fixation counts, average fixation duration (tuple)
-    """
-    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW, on=TIMESTAMP)
-    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
-    average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
-    fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
-    fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
-    spatial_density = fixation_windows.apply(compute_spatial_density)
-    quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
-    click_stream = stimulus_data[
-        [TIMESTAMP, MOUSE_EVENT]
-    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
-    frame = {
-        FIXATION_COUNTS: unique_fixation_counts,
-        AVERAGE_FIX_DUR: average_fixation_duration,
-        SPATIAL_DENSITY: spatial_density,
-        FIXATION_TIME: fixation_time,
-        QUADRANTS: quadrants,
-        CLICK_STREAM: click_stream[:unique_fixation_counts.size]
-    }
-    return pd.DataFrame(frame)
-
-
-def compute_quadrant(average_fixation_duration, fixation_counts):
-    """
-    Generates a list of quadrants based on correlation.
-
-    :param average_fixation_duration: a list of mean fixation durations
-    :param fixation_counts: a list of fixation counts
-    :return: a list of quadrants
-    """
-    mean_fixation_duration_mid = (average_fixation_duration.max() + average_fixation_duration.min()) / 2
-    fixation_count_mid = (fixation_counts.max() + fixation_counts.min()) / 2
-    quadrants = list()
-    for mean, count in zip(average_fixation_duration, fixation_counts):
-        if mean > mean_fixation_duration_mid and count > fixation_count_mid:
-            quadrants.append("Q1")
-        elif mean <= mean_fixation_duration_mid and count > fixation_count_mid:
-            quadrants.append("Q2")
-        elif mean <= mean_fixation_duration_mid and count <= fixation_count_mid:
-            quadrants.append("Q3")
-        elif mean > mean_fixation_duration_mid and count <= fixation_count_mid:
-            quadrants.append("Q4")
-        else:
-            quadrants.append(None)
-    return quadrants
-
-
-def output_summary_report(metrics: dict, depth: int = 0):
-    """
-    Dumps a summary report as a string.
-
-    :param metrics: a dictionary of metrics
-    :param depth: the depth of indentation
+    :param tables: a participant table
     :return: None
     """
-    for k, v in metrics.items():
-        indent = "\t" * depth
-        if isinstance(v, dict):
-            print(f'{indent}{k}')
-            output_summary_report(v, depth + 1)
-        else:
-            print(f'{indent}{k}: {v}')
+    df = clean_data(tables)
+    participant = df.iloc[0]["Name"]
+    stimuli = df[STIMULUS_NAME].unique()
+    for stimulus in stimuli:
+        if stimulus == "MATLAB Session":
+            stimulus_filter = df[STIMULUS_NAME] == stimulus
+            stimulus_data = df[stimulus_filter]
+            report = summary_report(stimulus, stimulus_data)
+            output_summary_report(report)
+            plot_data(participant, stimulus, stimulus_data)
 
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
@@ -288,7 +143,6 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
 
 
 def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
-
     # Setup data
     window_metrics = windowed_metrics(stimulus_data)
     fixation_time = convert_date_to_time(window_metrics.index)
@@ -640,6 +494,64 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
+def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
+    """
+    Generates a summary report of the data for a given stimuli.
+
+    :param stimulus: a stimulus like MATLAB
+    :param stimulus_data: the section of the data only relevant to the stimulus
+    :return: a summary report as a dictionary
+    """
+    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
+    fixation_sequence: pd.Series = fixation_sequence_sans_dupes[FIXATION_SEQUENCE]
+    fixation_duration: pd.Series = fixation_sequence_sans_dupes[FIXATION_DURATION]
+    fixation_sequence_length = fixation_sequence.max()
+    fixation_sequence_duration = fixation_duration.sum()
+    seconds = fixation_sequence_duration / 1000
+    fixation_duration_mean = fixation_duration.mean()
+    fixation_duration_median = fixation_duration.median()
+    fixation_duration_min = fixation_duration.min()
+    fixation_duration_max = fixation_duration.max()
+    fixation_duration_std = fixation_duration.std()
+    start_date_time = stimulus_data.iloc[0][TIMESTAMP]
+    end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
+    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
+    pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
+    pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
+    pupil_dilation_min = pupil_dilation[PUPIL_LEFT].min(), pupil_dilation[PUPIL_RIGHT].min()
+    pupil_dilation_max = pupil_dilation[PUPIL_LEFT].max(), pupil_dilation[PUPIL_RIGHT].max()
+    return {
+        f"{stimulus} ({stimulus_data['Name'].iloc[0]})": {
+            "Stimulus Metrics": {
+                "Start time": start_date_time,
+                "End time": end_date_time,
+                "Duration": end_date_time - start_date_time
+            },
+            "Fixation Sequence Metrics": {
+                "Number of Points": fixation_sequence_length,
+                "Duration (seconds)": seconds
+            },
+            "Fixation Duration Metrics": {
+                "Mean (ms)": fixation_duration_mean,
+                "Median (ms)": fixation_duration_median,
+                "Standard Deviation (ms)": fixation_duration_std,
+                "Minimum (ms)": fixation_duration_min,
+                "Maximum (ms)": fixation_duration_max
+            },
+            "Pupil Metrics": {
+                "Mean Left/Right (mm)": pupil_dilation_mean,
+                "Median Left/Right (mm)": pupil_dilation_median,
+                "Min Left/Right (mm)": pupil_dilation_min,
+                "Max Left/Right (mm)": pupil_dilation_max
+            }
+        }
+    }
+
+
+# HELPER FUNCTIONS --------------------------------------------------------------------------------
+
+
 def convert_date_to_time(date: pd.Series) -> pd.Series:
     """
     A helper function which converts a series of dates to a series of times in minutes.
@@ -744,23 +656,122 @@ def get_quad_colors(column: pd.Series) -> list:
     return [get_quadrant_color_map().get(value, "white") for value in column]
 
 
-def generate_statistics(tables: dict):
+def grid_index(x: int, y: int) -> int:
     """
-    Generates various statistics for a participant.
+    Given the x and y coordinates of the screen, this function returns the index of the cell
+    that the point occupies. Currently, this function is hardcoded for a 10x10 grid and
+    a 2560x1440 screen. If x and y coordinates are not valid, this function returns -1.
+    Indices are numbered between 0 and 99.
 
-    :param tables: a participant table
+    :param x: the x position of a pixel
+    :param y: the y position of a pixel
+    :return: the index of that pixel with a 10x10 grid
+    """
+    if not np.isnan(x) and not np.isnan(y):
+        row = int(x / 2560 * 10)
+        col = int(y / 1440 * 10)
+        return row + col * 10
+    return -1
+
+
+def compute_spatial_density(df: pd.DataFrame) -> float:
+    """
+    Given a set of fixation points, this function returns the spatial density. In other words,
+    the ratio of grid points that are occupied by fixation points.
+
+    :param df: a dataframe containing fixation points
+    :return: a ratio
+    """
+    points = [index for x, y in zip(df[FIXATION_X], df[FIXATION_Y]) if (index := grid_index(x, y)) >= 0]
+    count = len(np.unique(points))
+    return count / 100
+
+
+def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes fixation counts and average fixation duration within some window of time.
+
+    :param stimulus_data: the section of the data only relevant to the stimulus
+    :return: fixation counts, average fixation duration (tuple)
+    """
+    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
+    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW, on=TIMESTAMP)
+    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
+    average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
+    fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
+    fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
+    spatial_density = fixation_windows.apply(compute_spatial_density)
+    quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
+    click_stream = stimulus_data[
+        [TIMESTAMP, MOUSE_EVENT]
+    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
+    frame = {
+        FIXATION_COUNTS: unique_fixation_counts,
+        AVERAGE_FIX_DUR: average_fixation_duration,
+        SPATIAL_DENSITY: spatial_density,
+        FIXATION_TIME: fixation_time,
+        QUADRANTS: quadrants,
+        CLICK_STREAM: click_stream[:unique_fixation_counts.size]
+    }
+    return pd.DataFrame(frame)
+
+
+def compute_quadrant(average_fixation_duration, fixation_counts):
+    """
+    Generates a list of quadrants based on correlation.
+
+    :param average_fixation_duration: a list of mean fixation durations
+    :param fixation_counts: a list of fixation counts
+    :return: a list of quadrants
+    """
+    mean_fixation_duration_mid = (average_fixation_duration.max() + average_fixation_duration.min()) / 2
+    fixation_count_mid = (fixation_counts.max() + fixation_counts.min()) / 2
+    quadrants = list()
+    for mean, count in zip(average_fixation_duration, fixation_counts):
+        if mean > mean_fixation_duration_mid and count > fixation_count_mid:
+            quadrants.append("Q1")
+        elif mean <= mean_fixation_duration_mid and count > fixation_count_mid:
+            quadrants.append("Q2")
+        elif mean <= mean_fixation_duration_mid and count <= fixation_count_mid:
+            quadrants.append("Q3")
+        elif mean > mean_fixation_duration_mid and count <= fixation_count_mid:
+            quadrants.append("Q4")
+        else:
+            quadrants.append(None)
+    return quadrants
+
+
+def output_summary_report(metrics: dict, depth: int = 0):
+    """
+    Dumps a summary report as a string.
+
+    :param metrics: a dictionary of metrics
+    :param depth: the depth of indentation
     :return: None
     """
-    df = clean_data(tables)
-    participant = df.iloc[0]["Name"]
-    stimuli = df[STIMULUS_NAME].unique()
-    for stimulus in stimuli:
-        if stimulus == "MATLAB Session":
-            stimulus_filter = df[STIMULUS_NAME] == stimulus
-            stimulus_data = df[stimulus_filter]
-            report = summary_report(stimulus, stimulus_data)
-            output_summary_report(report)
-            plot_data(participant, stimulus, stimulus_data)
+    for k, v in metrics.items():
+        indent = "\t" * depth
+        if isinstance(v, dict):
+            print(f'{indent}{k}')
+            output_summary_report(v, depth + 1)
+        else:
+            print(f'{indent}{k}: {v}')
+
+
+# MAIN LOGIC -----------------------------------------------------------------------
+
+
+def main():
+    """
+    The main drop in function for the program.
+
+    :return: None
+    """
+    if len(sys.argv) > 1:
+        paths = sys.argv[1:]
+        participants = read_tsv_files(*paths)
+        for participant in paths:
+            analyze_data(participants[participant])
 
 
 if __name__ == '__main__':
