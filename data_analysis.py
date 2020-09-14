@@ -21,6 +21,7 @@ FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 MOUSE_EVENT = "MouseEvent"
+GSR_RAW = "GSR RAW (no units) (Shimmer)"
 GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
 GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
 
@@ -94,6 +95,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[FIXATION_Y] = pd.to_numeric(data[FIXATION_Y])
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
+    data[GSR_RAW] = pd.to_numeric(data[GSR_RAW])
     data[GSR_KOHMS] = pd.to_numeric(data[GSR_KOHMS])
     data[GSR_MICROSIEMENS] = pd.to_numeric(data[GSR_MICROSIEMENS])
     return data
@@ -173,13 +175,15 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
     """
 
     # Setup figure
-    fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 4))
+    fig_eda, ax_eda = plt.subplots(2, 1, figsize=(12, 6))
     fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
-    eda_plot = ax_eda
+    gsr_inverse_plot = ax_eda[0]
+    gsr_range_corrected_plot = ax_eda[1]
 
     # Plot
-    generate_gsr_plot(eda_plot, stimulus_data)
+    generate_gsr_inverse_plot(gsr_inverse_plot, stimulus_data)
+    generate_gsr_range_corrected_plot(gsr_range_corrected_plot, stimulus_data)
 
     return fig_eda
 
@@ -245,9 +249,32 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     return fig_fixation
 
 
-def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
-    Plots Galvanic Skin Response (GSR) data (aka EDA)
+    Plots the range-corrected EDA according to Villanueva (2018)—page 424.
+
+    :param axes: the axes to plot on
+    :param stimulus_data: the stimulus data
+    :return: None
+    """
+
+    plt.sca(axes)
+
+    time = convert_date_to_time(stimulus_data[TIMESTAMP])
+    gsr_us = stimulus_data[GSR_MICROSIEMENS]
+    range_corrected_gsr = (gsr_us - gsr_us.max()).abs() / abs(gsr_us.max() - gsr_us.min())
+
+    axes.set_title("Range-Corrected GSR Over Time")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.plot(time, range_corrected_gsr)
+
+    if len(time) != 0:
+        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+
+
+def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    """
+    Plots Galvanic Skin Response (GSR) data (aka EDA) using the inverse units (e.g. kOhms & microSiemens).
 
     :param axes: the axis to plot on
     :param stimulus_data: the data to use for plotting
