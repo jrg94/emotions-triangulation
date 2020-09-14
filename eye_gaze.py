@@ -266,7 +266,7 @@ def output_summary_report(metrics: dict, depth: int = 0):
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     """
-    Plots eye gaze and EDA data.
+    Given a set of data, a participant, and their stimulus, this function will plot various forms analyses as figures.
 
     :param participant: the name of the participant
     :param stimulus: the current stimulus used as the plot title
@@ -280,14 +280,22 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
         plot_eda_data(stimulus, participant, stimulus_data)
     ]
 
-    # Tried to be slick, but maps don't actually execute the function until after some transformation...
-    list(map(lambda fig: fig.tight_layout(rect=[0, 0.03, 1, 0.95]), figures))
+    for fig in figures:
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
-    # Manage plots
     plt.show()
 
 
 def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    """
+    Plots all the EDA related data.
+
+    :param stimulus: the name of the stimulus
+    :param participant: the name of the participant
+    :param stimulus_data: the raw stimulus data
+    :return: the resulting figure
+    """
+
     # Setup figure
     fig_eda, ax_eda = plt.subplots(1, 1, figsize=(12, 4))
     fig_eda.suptitle(f'{stimulus}: {participant}')
@@ -301,6 +309,15 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
 
 
 def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    """
+    Plots all pupil related data.
+
+    :param stimulus: the name of the stimulus
+    :param participant: the name of the participant
+    :param stimulus_data: the raw stimulus data
+    :return: the resulting figure
+    """
+
     # Setup data
     pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
     pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
@@ -323,6 +340,15 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
 
 
 def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    """
+    Plots all eye gaze related data.
+
+    :param stimulus: the name of the stimulus
+    :param participant: the name of the participant
+    :param stimulus_data: the raw stimulus data
+    :return: the resulting figure
+    """
+
     # Setup data
     window_metrics = windowed_metrics(stimulus_data)
     fixation_time = convert_date_to_time(window_metrics.index)
