@@ -132,7 +132,6 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     :param stimulus_data: all raw data
     :return: None
     """
-    print(stimulus_data.columns)
 
     figures: List[plt.Figure] = [
         plot_eye_gaze_data(stimulus, participant, stimulus_data),
