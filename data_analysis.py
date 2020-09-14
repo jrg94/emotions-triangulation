@@ -21,7 +21,8 @@ FIXATION_X = "FixationX"
 FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 MOUSE_EVENT = "MouseEvent"
-GSR = "GSR CAL (kOhms) (Shimmer)"
+GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
+GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
 
 # Analysis column names
 FIXATION_COUNTS = "Fixation Counts"
@@ -93,7 +94,8 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[FIXATION_Y] = pd.to_numeric(data[FIXATION_Y])
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
-    data[GSR] = pd.to_numeric(data[GSR])
+    data[GSR_KOHMS] = pd.to_numeric(data[GSR_KOHMS])
+    data[GSR_MICROSIEMENS] = pd.to_numeric(data[GSR_MICROSIEMENS])
     return data
 
 
@@ -128,6 +130,7 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     :param stimulus_data: all raw data
     :return: None
     """
+    print(stimulus_data.columns)
 
     figures: List[plt.Figure] = [
         plot_eye_gaze_data(stimulus, participant, stimulus_data),
@@ -251,12 +254,24 @@ def generate_gsr_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     :return: None
     """
     plt.sca(axes)
-    time = (stimulus_data[TIMESTAMP].astype(np.int64) / 10 ** 9) / 60
-    time = time - time.min()
+
+    # Setup data
+    time = convert_date_to_time(stimulus_data[TIMESTAMP])
+
     axes.set_title("GSR Over Time")
+
+    color = 'tab:red'
     axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("GSR (kOhms)", fontsize="large")
-    axes.plot(time, stimulus_data[GSR])
+    axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
+    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
+    axes.tick_params(axis="y", labelcolor=color)
+
+    ax2 = axes.twinx()
+    color = 'tab:cyan'
+    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
+    ax2.set_ylabel("GSR (µS)", color=color, fontsize="large")
+    ax2.tick_params(axis="y", labelcolor=color)
+
     if len(time) != 0:
         plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
