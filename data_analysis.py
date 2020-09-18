@@ -527,7 +527,7 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     """
     plt.sca(axes)
 
-    axes.plot(time, window_metrics[CLICK_STREAM], linewidth=2)
+    axes.bar(time, window_metrics[CLICK_STREAM], width=.5, align="edge")
     axes.set_title("Mouse Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Click Counts", fontsize="large")
