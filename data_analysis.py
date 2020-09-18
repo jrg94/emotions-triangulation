@@ -24,6 +24,7 @@ MOUSE_EVENT = "MouseEvent"
 GSR_RAW = "GSR RAW (no units) (Shimmer)"
 GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
 GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
+KEY_CODE = "KeyCode"
 
 # Analysis column names
 FIXATION_COUNTS = "Fixation Counts"
@@ -527,10 +528,13 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     """
     plt.sca(axes)
 
-    axes.bar(time, window_metrics[CLICK_STREAM], width=.5, align="edge")
-    axes.set_title("Mouse Events Over Time", fontsize="large")
+    width = .20
+    axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
+    axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    axes.set_title("Click Stream Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("Click Counts", fontsize="large")
+    axes.set_ylabel("Click Stream Event Counts", fontsize="large")
+    axes.legend()
 
     plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
@@ -744,15 +748,16 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     click_stream = stimulus_data[
-        [TIMESTAMP, MOUSE_EVENT]
-    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
+        [TIMESTAMP, MOUSE_EVENT, KEY_CODE]
+    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP).count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
         FIXATION_TIME: fixation_time,
         QUADRANTS: quadrants,
-        CLICK_STREAM: click_stream[:unique_fixation_counts.size]
+        CLICK_STREAM: click_stream[MOUSE_EVENT][:unique_fixation_counts.size],
+        KEY_CODE: click_stream[KEY_CODE]
     }
     return pd.DataFrame(frame)
 
