@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import cm
+from matplotlib.ticker import MultipleLocator
 
 META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
@@ -24,6 +25,7 @@ MOUSE_EVENT = "MouseEvent"
 GSR_RAW = "GSR RAW (no units) (Shimmer)"
 GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
 GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
+KEY_CODE = "KeyCode"
 
 # Analysis column names
 FIXATION_COUNTS = "Fixation Counts"
@@ -33,10 +35,10 @@ QUADRANTS = "Quadrants"
 CLICK_STREAM = "Click Stream"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "30S"
+WINDOW = "10S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
-VISUAL_SCALE = 190  # Scales the dilation dot visually
+VISUAL_SCALE = 100  # Scales the dilation dot visually
 
 
 # DATA LOADING -----------------------------------------------------------------------
@@ -265,10 +267,8 @@ def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFram
 
     axes.set_title("Range-Corrected GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
+    set_windowed_x_axis(axes)
     axes.plot(time, range_corrected_gsr)
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
@@ -289,17 +289,15 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     color = 'tab:red'
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
-    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
     axes.tick_params(axis="y", labelcolor=color)
+    set_windowed_x_axis(axes)
+    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
 
     ax2 = axes.twinx()
     color = 'tab:cyan'
-    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
     ax2.set_ylabel("GSR (µS)", color=color, fontsize="large")
     ax2.tick_params(axis="y", labelcolor=color)
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
@@ -331,15 +329,15 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         # average
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
         category_avg = ["average"] * len(time)
-        normalized_avg_pupil = ((avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) + .1) * VISUAL_SCALE
+        normalized_avg_pupil = normalize_column(avg_pupil)
 
         # Pupil labels
         label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
         label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
         label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
 
-        if len(time) != 0:
-            plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+        set_windowed_x_axis(axes)
+
     except AttributeError as e:
         print("Something broke while rendering pupil data")
         print(e)
@@ -379,9 +377,7 @@ def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.Da
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
     axes.legend()
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    set_windowed_x_axis(axes)
 
 
 def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
@@ -478,8 +474,7 @@ def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metri
     ax2.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
     ax2.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
     ax2.tick_params(axis="y", labelcolor=color)
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    set_windowed_x_axis(axes)
 
 
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
@@ -510,10 +505,11 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax2.tick_params(axis='y', labelcolor=color)
 
     # Background quadrants
+    minutes = int(WINDOW[:-1]) / 60
+    width = minutes
     colors = get_quad_colors(window_metrics[QUADRANTS])
-    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=.5, color=colors)
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors)
+    set_windowed_x_axis(axes)
 
 
 def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
@@ -527,12 +523,15 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     """
     plt.sca(axes)
 
-    axes.plot(time, window_metrics[CLICK_STREAM], linewidth=2)
-    axes.set_title("Mouse Events Over Time", fontsize="large")
+    minutes = int(WINDOW[:-1]) / 60
+    width = minutes / 2 - minutes / 10  # .20
+    axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
+    axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    axes.set_title("Click Stream Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("Click Counts", fontsize="large")
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    axes.set_ylabel("Click Stream Event Counts", fontsize="large")
+    set_windowed_x_axis(axes)
+    axes.legend()
 
 
 def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
@@ -591,6 +590,20 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
 
 
 # HELPER FUNCTIONS --------------------------------------------------------------------------------
+
+
+def set_windowed_x_axis(axes: plt.Axes):
+    """
+    A helper function for showing markers on windowed data.
+    In particular, we show two-minute segments with the major
+    indicator and the proper window size with the minor indicator
+
+    :param axes:
+    :return:
+    """
+    seconds = int(WINDOW[:-1])
+    axes.xaxis.set_major_locator(MultipleLocator(2))
+    axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
@@ -744,15 +757,16 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     click_stream = stimulus_data[
-        [TIMESTAMP, MOUSE_EVENT]
-    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP)[MOUSE_EVENT].count()
+        [TIMESTAMP, MOUSE_EVENT, KEY_CODE]
+    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP).count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
         FIXATION_TIME: fixation_time,
         QUADRANTS: quadrants,
-        CLICK_STREAM: click_stream[:unique_fixation_counts.size]
+        CLICK_STREAM: click_stream[MOUSE_EVENT][:unique_fixation_counts.size],
+        KEY_CODE: click_stream[KEY_CODE]
     }
     return pd.DataFrame(frame)
 
