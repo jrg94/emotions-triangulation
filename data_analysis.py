@@ -39,7 +39,6 @@ WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 190  # Scales the dilation dot visually
-WINDOW_TICK = .5
 
 
 # DATA LOADING -----------------------------------------------------------------------
@@ -599,8 +598,9 @@ def set_windowed_x_axis(axes: plt.Axes):
     :param axes:
     :return:
     """
+    seconds = int(WINDOW[:2])
     axes.xaxis.set_major_locator(MultipleLocator(2))
-    axes.xaxis.set_minor_locator(MultipleLocator(WINDOW_TICK))
+    axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
