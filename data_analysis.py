@@ -35,10 +35,10 @@ QUADRANTS = "Quadrants"
 CLICK_STREAM = "Click Stream"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "30S"
+WINDOW = "10S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
-VISUAL_SCALE = 190  # Scales the dilation dot visually
+VISUAL_SCALE = 100  # Scales the dilation dot visually
 
 
 # DATA LOADING -----------------------------------------------------------------------
@@ -329,7 +329,7 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         # average
         avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
         category_avg = ["average"] * len(time)
-        normalized_avg_pupil = ((avg_pupil - avg_pupil.min()) / (avg_pupil.max() - avg_pupil.min()) + .1) * VISUAL_SCALE
+        normalized_avg_pupil = normalize_column(avg_pupil)
 
         # Pupil labels
         label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
@@ -505,8 +505,10 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     ax2.tick_params(axis='y', labelcolor=color)
 
     # Background quadrants
+    minutes = int(WINDOW[:-1]) / 60
+    width = minutes
     colors = get_quad_colors(window_metrics[QUADRANTS])
-    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=.5, color=colors)
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors)
     set_windowed_x_axis(axes)
 
 
@@ -521,7 +523,8 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     """
     plt.sca(axes)
 
-    width = .20
+    minutes = int(WINDOW[:-1]) / 60
+    width = minutes / 2 - minutes / 10  # .20
     axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
     axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
     axes.set_title("Click Stream Events Over Time", fontsize="large")
@@ -598,7 +601,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     :param axes:
     :return:
     """
-    seconds = int(WINDOW[:2])
+    seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
     axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
 
