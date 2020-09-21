@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import cm
+from matplotlib.ticker import MultipleLocator
 
 META_DATA = "table_0"
 GAZE_CALIBRATION_POINTS_DETAILS = "table_1"
@@ -266,10 +267,8 @@ def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFram
 
     axes.set_title("Range-Corrected GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
+    set_windowed_x_axis(axes)
     axes.plot(time, range_corrected_gsr)
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
@@ -290,17 +289,15 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     color = 'tab:red'
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
-    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
     axes.tick_params(axis="y", labelcolor=color)
+    set_windowed_x_axis(axes)
+    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
 
     ax2 = axes.twinx()
     color = 'tab:cyan'
-    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
     ax2.set_ylabel("GSR (µS)", color=color, fontsize="large")
     ax2.tick_params(axis="y", labelcolor=color)
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
@@ -339,8 +336,8 @@ def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.Data
         label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
         label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
 
-        if len(time) != 0:
-            plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+        set_windowed_x_axis(axes)
+
     except AttributeError as e:
         print("Something broke while rendering pupil data")
         print(e)
@@ -380,9 +377,7 @@ def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.Da
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
     axes.legend()
-
-    if len(time) != 0:
-        plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    set_windowed_x_axis(axes)
 
 
 def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
@@ -479,8 +474,7 @@ def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metri
     ax2.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
     ax2.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
     ax2.tick_params(axis="y", labelcolor=color)
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    set_windowed_x_axis(axes)
 
 
 def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
@@ -513,8 +507,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     # Background quadrants
     colors = get_quad_colors(window_metrics[QUADRANTS])
     axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=.5, color=colors)
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
+    set_windowed_x_axis(axes)
 
 
 def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
@@ -534,9 +527,8 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     axes.set_title("Click Stream Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Click Stream Event Counts", fontsize="large")
+    set_windowed_x_axis(axes)
     axes.legend()
-
-    plt.xticks(np.arange(0, time.max() + 1, step=2))  # Force two-minute labels
 
 
 def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
@@ -595,6 +587,11 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
 
 
 # HELPER FUNCTIONS --------------------------------------------------------------------------------
+
+
+def set_windowed_x_axis(axes: plt.Axes):
+    axes.xaxis.set_major_locator(MultipleLocator(2))
+    axes.xaxis.set_minor_locator(MultipleLocator(.5))
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
