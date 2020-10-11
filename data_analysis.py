@@ -15,7 +15,6 @@ DATA = "table_1"
 
 # Data column names
 STIMULUS_NAME = "StimulusName"
-AVERAGE_FIX_DUR = "Average Fixation Duration"
 FIXATION_DURATION = "FixationDuration"
 FIXATION_SEQUENCE = "FixationSeq"
 FIXATION_X = "FixationX"
@@ -28,11 +27,13 @@ GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
 KEY_CODE = "KeyCode"
 
 # Analysis column names
+AVERAGE_FIX_DUR = "Average Fixation Duration"
 FIXATION_COUNTS = "Fixation Counts"
 SPATIAL_DENSITY = "Spatial Density"
 FIXATION_TIME = "Fixation Time"
 QUADRANTS = "Quadrants"
 CLICK_STREAM = "Click Stream"
+RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
 WINDOW = "10S"
@@ -176,15 +177,23 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
     """
 
     # Setup figure
-    fig_eda, ax_eda = plt.subplots(2, 1, figsize=(12, 6))
+    fig_eda, ax_eda = plt.subplots(3, 1, figsize=(12, 6))
     fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
     gsr_inverse_plot = ax_eda[0]
     gsr_range_corrected_plot = ax_eda[1]
+    gsr_range_corrected_mean_plot = ax_eda[2]
+
+    # Quick analysis
+    gsr_us = stimulus_data[GSR_MICROSIEMENS]
+    stimulus_data = stimulus_data.assign(
+        range_corrected_eda=(gsr_us - gsr_us.max()).abs() / abs(gsr_us.max() - gsr_us.min())
+    )
 
     # Plot
     generate_gsr_inverse_plot(gsr_inverse_plot, stimulus_data)
     generate_gsr_range_corrected_plot(gsr_range_corrected_plot, stimulus_data)
+    generate_gsr_range_correct_means_plot(gsr_range_corrected_mean_plot, stimulus_data)
 
     return fig_eda
 
@@ -250,6 +259,18 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     return fig_fixation
 
 
+def generate_gsr_range_correct_means_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    plt.sca(axes)
+
+    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).mean()
+    time = convert_date_to_time(windowed_data.index)
+
+    axes.set_title("Range-Corrected GSR Means Over Two-Minute Windows")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    set_windowed_x_axis(axes)
+    axes.plot(time, windowed_data[RANGE_CORRECT_EDA])
+
+
 def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     Plots the range-corrected EDA according to Villanueva (2018)—page 424.
@@ -262,8 +283,7 @@ def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFram
     plt.sca(axes)
 
     time = convert_date_to_time(stimulus_data[TIMESTAMP])
-    gsr_us = stimulus_data[GSR_MICROSIEMENS]
-    range_corrected_gsr = (gsr_us - gsr_us.max()).abs() / abs(gsr_us.max() - gsr_us.min())
+    range_corrected_gsr = stimulus_data[RANGE_CORRECT_EDA]
 
     axes.set_title("Range-Corrected GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
