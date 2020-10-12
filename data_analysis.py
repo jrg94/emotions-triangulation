@@ -178,13 +178,13 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
     """
 
     # Setup figure
-    fig_eda, ax_eda = plt.subplots(4, 1, figsize=(12, 6))
+    fig_eda, ax_eda = plt.subplots(2, 2, figsize=(12, 8))
     fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
-    gsr_inverse_plot = ax_eda[0]
-    gsr_range_corrected_plot = ax_eda[1]
-    gsr_range_corrected_mean_plot = ax_eda[2]
-    gsr_peaks_plot = ax_eda[3]
+    gsr_inverse_plot = ax_eda[0][0]
+    gsr_range_corrected_plot = ax_eda[0][1]
+    gsr_range_corrected_mean_plot = ax_eda[1][0]
+    gsr_peaks_plot = ax_eda[1][1]
 
     # Quick analysis
     gsr_us = stimulus_data[GSR_MICROSIEMENS]
@@ -278,13 +278,15 @@ def generate_gsr_range_correct_means_plot(axes: plt.Axes, stimulus_data: pd.Data
     """
     plt.sca(axes)
 
-    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).mean()
+    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).mean()[:15]
     time = convert_date_to_time(windowed_data.index)
 
     axes.set_title("Range-Corrected GSR Means Over Two-Minute Windows")
     axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Range-Corrected GSR (dimensionless)")
+    axes.set_ylim(0, 1)
     set_windowed_x_axis(axes)
-    axes.plot(time, windowed_data[RANGE_CORRECT_EDA])
+    axes.bar(time, windowed_data[RANGE_CORRECT_EDA], width=2, align="edge", edgecolor="black")
 
 
 def generate_gsr_peaks_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
@@ -297,13 +299,14 @@ def generate_gsr_peaks_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     plt.sca(axes)
 
-    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).sum()
+    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).sum()[:15]
     time = convert_date_to_time(windowed_data.index)
 
     axes.set_title("Range-Corrected GSR Peaks Over Two-Minute Windows")
     axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Peak Count")
     set_windowed_x_axis(axes)
-    axes.plot(time, windowed_data["peaks"])
+    axes.bar(time, windowed_data["peaks"], width=2, align="edge", edgecolor="black")
 
 
 def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
@@ -322,6 +325,8 @@ def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFram
 
     axes.set_title("Range-Corrected GSR Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Range-Corrected GSR (dimensionless)")
+    axes.set_ylim(0, 1)
     set_windowed_x_axis(axes)
     axes.plot(time, range_corrected_gsr)
 
