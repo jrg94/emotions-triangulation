@@ -459,20 +459,20 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     """
     plt.sca(axes)
 
-    min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()
-    max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()
-    min_fix_count = window_metrics[FIXATION_COUNTS].min()
-    max_fix_count = window_metrics[FIXATION_COUNTS].max()
+    min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()  # left
+    max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()  # right
+    min_fix_count = window_metrics[FIXATION_COUNTS].min()  # bottom
+    max_fix_count = window_metrics[FIXATION_COUNTS].max()  # top
 
     axes.set_title("Overview of Participant Visual Effort")
 
-    x_mid = (max_fix_dur + min_fix_dur) / 2
-    y_mid = (window_metrics[FIXATION_COUNTS].max() + min_fix_count) / 2
+    x_mid = (max_fix_dur + min_fix_dur) // 2
+    y_mid = (max_fix_count + min_fix_count) // 2
 
     # Background quadrant colors
     bars = axes.bar(
         x=(x_mid, min_fix_dur, min_fix_dur, x_mid),
-        height=y_mid,
+        height=y_mid - min_fix_count,
         bottom=(y_mid, y_mid, min_fix_count, min_fix_count),
         width=x_mid - min_fix_dur,
         color=get_quadrant_color_map().values(),
