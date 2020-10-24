@@ -108,7 +108,6 @@ def clean_data(tables: dict) -> pd.DataFrame:
     ].replace(r'^\s*$', np.NAN, regex=True)
     data[MOUSE_EVENT] = pd.Categorical(data[MOUSE_EVENT])
     data[KEY_CODE] = pd.Categorical(data[KEY_CODE])
-    print(data.groupby([pd.Grouper(freq=WINDOW), MOUSE_EVENT])[MOUSE_EVENT].count())
     return data
 
 
@@ -163,13 +162,15 @@ def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.Da
     fixation_time = convert_date_to_time(window_metrics.index)
 
     # Setup figure
-    fig_click, ax_click = plt.subplots(1, 1, figsize=(12, 4))
+    fig_click, ax_click = plt.subplots(2, 1, figsize=(12, 6))
     fig_click.suptitle(f'{stimulus}: {participant}')
     fig_click.canvas.set_window_title("Click Stream Analysis")
-    click_stream_plot = ax_click
+    click_stream_plot = ax_click[0]
+    mouse_event_plot = ax_click[1]
 
     # Plot
     generate_click_stream_plot(click_stream_plot, fixation_time, window_metrics)
+    generate_mouse_event_plot(mouse_event_plot, stimulus_data)
 
     return fig_click
 
@@ -594,6 +595,8 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     width = minutes / 2 - minutes / 10  # .20
     axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
     axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+
+    # Clean up plot
     axes.set_title("Click Stream Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Click Stream Event Counts", fontsize="large")
@@ -601,7 +604,20 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
     axes.legend()
 
 
-#def generate_mouse_event_plot(axes: plt.Axes, time: np.array, window_me)
+def generate_mouse_event_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    plt.sca(axes)
+
+    # Data analysis
+    data = stimulus_data.groupby([pd.Grouper(freq=WINDOW), MOUSE_EVENT])[MOUSE_EVENT].count().unstack()
+    time = convert_date_to_time(data.index)
+    axes.plot(time, data)
+
+    # Clean up plot
+    axes.set_title("Mouse Events Over Time", fontsize="large")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Mouse Event Counts", fontsize="large")
+    set_windowed_x_axis(axes)
+    axes.legend(labels=data.columns)
 
 
 def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
@@ -674,6 +690,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
     axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
+    axes.set_xlim(0, 30)
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
@@ -827,7 +844,6 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
-    print(click_stream)
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
