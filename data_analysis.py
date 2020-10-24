@@ -37,7 +37,7 @@ CLICK_STREAM = "Click Stream"
 RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "10S"
+WINDOW = "20S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 100  # Scales the dilation dot visually
@@ -93,6 +93,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     header = data_table[0]
     data = pd.DataFrame(data_table[1:], columns=header)
     data[TIMESTAMP] = pd.to_datetime(data[TIMESTAMP], format=TIME_FORMAT)
+    data = data.set_index(TIMESTAMP)
     data[FIXATION_SEQUENCE] = pd.to_numeric(data[FIXATION_SEQUENCE])
     data[FIXATION_DURATION] = pd.to_numeric(data[FIXATION_DURATION])
     data[FIXATION_X] = pd.to_numeric(data[FIXATION_X])
@@ -102,6 +103,11 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[GSR_RAW] = pd.to_numeric(data[GSR_RAW])
     data[GSR_KOHMS] = pd.to_numeric(data[GSR_KOHMS])
     data[GSR_MICROSIEMENS] = pd.to_numeric(data[GSR_MICROSIEMENS])
+    data[[MOUSE_EVENT, KEY_CODE]] = data[
+        [MOUSE_EVENT, KEY_CODE]
+    ].replace(r'^\s*$', np.NAN, regex=True)
+    data[MOUSE_EVENT] = pd.Categorical(data[MOUSE_EVENT])
+    data[KEY_CODE] = pd.Categorical(data[KEY_CODE])
     return data
 
 
@@ -150,19 +156,26 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     plt.show()
 
 
-def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
-    # Setup data
-    window_metrics = windowed_metrics(stimulus_data)
-    fixation_time = convert_date_to_time(window_metrics.index)
+def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    """
+    Plots the click stream data on a figure.
+
+    :param stimulus: the raw stimulus name
+    :param participant: the participant name
+    :param stimulus_data: the raw stimulus data
+    :return: the resulting figure
+    """
 
     # Setup figure
-    fig_click, ax_click = plt.subplots(1, 1, figsize=(12, 4))
+    fig_click, ax_click = plt.subplots(2, 1, figsize=(12, 6))
     fig_click.suptitle(f'{stimulus}: {participant}')
     fig_click.canvas.set_window_title("Click Stream Analysis")
-    click_stream_plot = ax_click
+    click_stream_plot = ax_click[0]
+    mouse_event_plot = ax_click[1]
 
     # Plot
-    generate_click_stream_plot(click_stream_plot, fixation_time, window_metrics)
+    generate_click_stream_plot(click_stream_plot, stimulus_data)
+    generate_mouse_event_plot(mouse_event_plot, stimulus_data)
 
     return fig_click
 
@@ -217,13 +230,6 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
     :return: the resulting figure
     """
 
-    # Setup data
-    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
-    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
-    pupil_time = convert_date_to_time(pupil_dilation[TIMESTAMP])
-    window_metrics = windowed_metrics(stimulus_data)
-    fixation_time = convert_date_to_time(window_metrics.index)
-
     # Setup figure
     fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
     fig_dilation.suptitle(f'{stimulus}: {participant}')
@@ -232,8 +238,8 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
     raw_dilation_plot = ax_dilation[1]
 
     # Plot
-    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
-    generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
+    generate_pupil_circle_plot(dilation_plot, stimulus_data)
+    generate_pupil_dilation_plot(raw_dilation_plot, stimulus_data)
 
     return fig_dilation
 
@@ -278,7 +284,7 @@ def generate_gsr_range_correct_means_plot(axes: plt.Axes, stimulus_data: pd.Data
     """
     plt.sca(axes)
 
-    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).mean()[:15]
+    windowed_data = stimulus_data.resample("2min").mean()[:15]
     time = convert_date_to_time(windowed_data.index)
 
     axes.set_title("Range-Corrected GSR Means Over Two-Minute Windows")
@@ -299,7 +305,7 @@ def generate_gsr_peaks_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     plt.sca(axes)
 
-    windowed_data = stimulus_data.resample("2min", on=TIMESTAMP).sum()[:15]
+    windowed_data = stimulus_data.resample("2min").sum()[:15]
     time = convert_date_to_time(windowed_data.index)
 
     axes.set_title("Range-Corrected GSR Peaks Over Two-Minute Windows")
@@ -320,7 +326,7 @@ def generate_gsr_range_corrected_plot(axes: plt.Axes, stimulus_data: pd.DataFram
 
     plt.sca(axes)
 
-    time = convert_date_to_time(stimulus_data[TIMESTAMP])
+    time = convert_date_to_time(stimulus_data.index)
     range_corrected_gsr = stimulus_data[RANGE_CORRECT_EDA]
 
     axes.set_title("Range-Corrected GSR Over Time")
@@ -342,7 +348,7 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     plt.sca(axes)
 
     # Setup data
-    time = convert_date_to_time(stimulus_data[TIMESTAMP])
+    time = convert_date_to_time(stimulus_data.index)
 
     axes.set_title("GSR Over Time")
 
@@ -360,47 +366,45 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
 
 
-def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_circle_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
+    :param stimulus_data: the raw stimulus data for analysis
     :param axes: the axes to plot on
-    :param time: the numpy array of times
-    :param dilation: the dataframe of pupil data
     :return: None
     """
     plt.sca(axes)
-    windowed_data = dilation.resample(WINDOW, on=TIMESTAMP)
 
+    dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
+    dilation = dilation[(dilation[PUPIL_LEFT] != -1) & (dilation[PUPIL_RIGHT] != -1)]
+    windowed_data_mean = dilation.resample(WINDOW).mean()
+    time = convert_date_to_time(windowed_data_mean.index)
+
+    # left
+    left_pupil = windowed_data_mean[PUPIL_LEFT]
+    category_left = ["left"] * len(time)
+    normalized_left_pupil = normalize_column(left_pupil)
+
+    # right
+    right_pupil = windowed_data_mean[PUPIL_RIGHT]
+    category_right = ["right"] * len(time)
+    normalized_right_pupil = normalize_column(right_pupil)
+
+    # average
+    avg_pupil = windowed_data_mean[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
+    category_avg = ["average"] * len(time)
+    normalized_avg_pupil = normalize_column(avg_pupil)
+
+    # Pupil labels
+    label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
+    label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
+    label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
+
+    # Clean up plot
     axes.set_title("Mean Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
-
-    try:  # a patch for now
-        # left
-        left_pupil = windowed_data.mean()[PUPIL_LEFT]
-        category_left = ["left"] * len(time)
-        normalized_left_pupil = normalize_column(left_pupil)
-
-        # right
-        right_pupil = windowed_data.mean()[PUPIL_RIGHT]
-        category_right = ["right"] * len(time)
-        normalized_right_pupil = normalize_column(right_pupil)
-
-        # average
-        avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
-        category_avg = ["average"] * len(time)
-        normalized_avg_pupil = normalize_column(avg_pupil)
-
-        # Pupil labels
-        label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
-        label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
-        label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
-
-        set_windowed_x_axis(axes)
-
-    except AttributeError as e:
-        print("Something broke while rendering pupil data")
-        print(e)
+    set_windowed_x_axis(axes)
 
 
 def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int, list]:
@@ -420,19 +424,24 @@ def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int,
     return min_index, max_index, edge_colors
 
 
-def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_dilation_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
+    :param stimulus_data: the raw stimulus data to analyze
     :param axes: the axes to plot on
-    :param time: the numpy array of times
-    :param dilation: the dataframe of pupil data
     :return: None
     """
     plt.sca(axes)
 
+    # Data analysis
+    dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
+    dilation = dilation[(dilation[PUPIL_LEFT] != -1) & (dilation[PUPIL_RIGHT] != -1)]
+    time = convert_date_to_time(dilation.index)
     axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
     axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
+
+    # Clean up plot
     axes.set_title("Raw Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
@@ -450,20 +459,20 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     """
     plt.sca(axes)
 
-    min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()
-    max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()
-    min_fix_count = window_metrics[FIXATION_COUNTS].min()
-    max_fix_count = window_metrics[FIXATION_COUNTS].max()
+    min_fix_dur = window_metrics[AVERAGE_FIX_DUR].min()  # left
+    max_fix_dur = window_metrics[AVERAGE_FIX_DUR].max()  # right
+    min_fix_count = window_metrics[FIXATION_COUNTS].min()  # bottom
+    max_fix_count = window_metrics[FIXATION_COUNTS].max()  # top
 
     axes.set_title("Overview of Participant Visual Effort")
 
-    x_mid = (max_fix_dur + min_fix_dur) / 2
-    y_mid = (window_metrics[FIXATION_COUNTS].max() + min_fix_count) / 2
+    x_mid = (max_fix_dur + min_fix_dur) // 2
+    y_mid = (max_fix_count + min_fix_count) // 2
 
     # Background quadrant colors
     bars = axes.bar(
         x=(x_mid, min_fix_dur, min_fix_dur, x_mid),
-        height=y_mid,
+        height=y_mid - min_fix_count,
         bottom=(y_mid, y_mid, min_fix_count, min_fix_count),
         width=x_mid - min_fix_dur,
         color=get_quadrant_color_map().values(),
@@ -568,30 +577,57 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     minutes = int(WINDOW[:-1]) / 60
     width = minutes
     colors = get_quad_colors(window_metrics[QUADRANTS])
-    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors)
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors, align="edge")
     set_windowed_x_axis(axes)
 
 
-def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     Generates a line plot of all click stream related data.
 
+    :param stimulus_data: the raw stimulus data
     :param axes: the axes to plot on
-    :param time: the time series
-    :param window_metrics: the windowed data
     :return: None
     """
     plt.sca(axes)
 
+    click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
+    time = convert_date_to_time(click_stream.index)
     minutes = int(WINDOW[:-1]) / 60
     width = minutes / 2 - minutes / 10  # .20
-    axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
-    axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    axes.bar(time, click_stream[MOUSE_EVENT].values, width=width, align="edge", label="Mouse Events")
+    axes.bar(time + width, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+
+    # Clean up plot
     axes.set_title("Click Stream Events Over Time", fontsize="large")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Click Stream Event Counts", fontsize="large")
     set_windowed_x_axis(axes)
     axes.legend()
+
+
+def generate_mouse_event_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    """
+    Generates a mouse event plot for each of the possible mouse events.
+
+    :param axes: the axes to plot on
+    :param stimulus_data: the raw stimulus data to analyze
+    :return: None
+    """
+
+    plt.sca(axes)
+
+    # Data analysis
+    data = stimulus_data.groupby([pd.Grouper(freq=WINDOW), MOUSE_EVENT])[MOUSE_EVENT].count().unstack()
+    time = convert_date_to_time(data.index)
+    axes.plot(time, data)
+
+    # Clean up plot
+    axes.set_title("Mouse Events Over Time", fontsize="large")
+    axes.set_xlabel("Time (minutes)", fontsize="large")
+    axes.set_ylabel("Mouse Event Counts", fontsize="large")
+    set_windowed_x_axis(axes)
+    axes.legend(labels=data.columns)
 
 
 def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
@@ -613,9 +649,9 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
     fixation_duration_min = fixation_duration.min()
     fixation_duration_max = fixation_duration.max()
     fixation_duration_std = fixation_duration.std()
-    start_date_time = stimulus_data.iloc[0][TIMESTAMP]
-    end_date_time = stimulus_data.iloc[-1][TIMESTAMP]
-    pupil_dilation = stimulus_data[[TIMESTAMP, PUPIL_LEFT, PUPIL_RIGHT]]
+    start_date_time = stimulus_data.index[0]
+    end_date_time = stimulus_data.index[-1]
+    pupil_dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
     pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
     pupil_dilation_mean = pupil_dilation[PUPIL_LEFT].mean(), pupil_dilation[PUPIL_RIGHT].mean()
     pupil_dilation_median = pupil_dilation[PUPIL_LEFT].median(), pupil_dilation[PUPIL_RIGHT].median()
@@ -664,6 +700,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
     axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
+    axes.set_xlim(0, 30)
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
@@ -809,24 +846,19 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     :return: fixation counts, average fixation duration (tuple)
     """
     fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW, on=TIMESTAMP)
+    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)
     unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
     fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
-    click_stream = stimulus_data[
-        [TIMESTAMP, MOUSE_EVENT, KEY_CODE]
-    ].replace(r'^\s*$', np.nan, regex=True).resample(WINDOW, on=TIMESTAMP).count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
         FIXATION_TIME: fixation_time,
-        QUADRANTS: quadrants,
-        CLICK_STREAM: click_stream[MOUSE_EVENT][:unique_fixation_counts.size],
-        KEY_CODE: click_stream[KEY_CODE]
+        QUADRANTS: quadrants
     }
     return pd.DataFrame(frame)
 
