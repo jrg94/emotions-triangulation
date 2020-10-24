@@ -230,13 +230,6 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
     :return: the resulting figure
     """
 
-    # Setup data
-    pupil_dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
-    pupil_dilation = pupil_dilation[(pupil_dilation[PUPIL_LEFT] != -1) & (pupil_dilation[PUPIL_RIGHT] != -1)]
-    pupil_time = convert_date_to_time(pupil_dilation.index)
-    window_metrics = windowed_metrics(stimulus_data)
-    fixation_time = convert_date_to_time(window_metrics.index)
-
     # Setup figure
     fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
     fig_dilation.suptitle(f'{stimulus}: {participant}')
@@ -245,8 +238,8 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
     raw_dilation_plot = ax_dilation[1]
 
     # Plot
-    generate_pupil_circle_plot(dilation_plot, fixation_time, pupil_dilation)
-    generate_pupil_dilation_plot(raw_dilation_plot, pupil_time, pupil_dilation)
+    generate_pupil_circle_plot(dilation_plot, stimulus_data)
+    generate_pupil_dilation_plot(raw_dilation_plot, stimulus_data)
 
     return fig_dilation
 
@@ -373,47 +366,45 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
 
 
-def generate_pupil_circle_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_circle_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
+    :param stimulus_data: the raw stimulus data for analysis
     :param axes: the axes to plot on
-    :param time: the numpy array of times
-    :param dilation: the dataframe of pupil data
     :return: None
     """
     plt.sca(axes)
-    windowed_data = dilation.resample(WINDOW)
 
+    dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
+    dilation = dilation[(dilation[PUPIL_LEFT] != -1) & (dilation[PUPIL_RIGHT] != -1)]
+    windowed_data_mean = dilation.resample(WINDOW).mean()
+    time = convert_date_to_time(windowed_data_mean.index)
+
+    # left
+    left_pupil = windowed_data_mean[PUPIL_LEFT]
+    category_left = ["left"] * len(time)
+    normalized_left_pupil = normalize_column(left_pupil)
+
+    # right
+    right_pupil = windowed_data_mean[PUPIL_RIGHT]
+    category_right = ["right"] * len(time)
+    normalized_right_pupil = normalize_column(right_pupil)
+
+    # average
+    avg_pupil = windowed_data_mean[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
+    category_avg = ["average"] * len(time)
+    normalized_avg_pupil = normalize_column(avg_pupil)
+
+    # Pupil labels
+    label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
+    label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
+    label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
+
+    # Clean up plot
     axes.set_title("Mean Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
-
-    try:  # a patch for now
-        # left
-        left_pupil = windowed_data.mean()[PUPIL_LEFT]
-        category_left = ["left"] * len(time)
-        normalized_left_pupil = normalize_column(left_pupil)
-
-        # right
-        right_pupil = windowed_data.mean()[PUPIL_RIGHT]
-        category_right = ["right"] * len(time)
-        normalized_right_pupil = normalize_column(right_pupil)
-
-        # average
-        avg_pupil = windowed_data.mean()[[PUPIL_LEFT, PUPIL_RIGHT]].mean(axis=1)
-        category_avg = ["average"] * len(time)
-        normalized_avg_pupil = normalize_column(avg_pupil)
-
-        # Pupil labels
-        label_pupils(merge_pupil_data(normalized_left_pupil, left_pupil, time, category_left), axes, "C0", (0, 15))
-        label_pupils(merge_pupil_data(normalized_avg_pupil, avg_pupil, time, category_avg), axes, "C1", (0, 15))
-        label_pupils(merge_pupil_data(normalized_right_pupil, right_pupil, time, category_right), axes, "C2", (0, -15))
-
-        set_windowed_x_axis(axes)
-
-    except AttributeError as e:
-        print("Something broke while rendering pupil data")
-        print(e)
+    set_windowed_x_axis(axes)
 
 
 def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int, list]:
@@ -433,19 +424,24 @@ def generate_pupil_edge_colors(column: pd.Series, color: str) -> Tuple[int, int,
     return min_index, max_index, edge_colors
 
 
-def generate_pupil_dilation_plot(axes: plt.Axes, time: np.array, dilation: pd.DataFrame):
+def generate_pupil_dilation_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     A handy method for generating the pupil dilation plot.
 
+    :param stimulus_data: the raw stimulus data to analyze
     :param axes: the axes to plot on
-    :param time: the numpy array of times
-    :param dilation: the dataframe of pupil data
     :return: None
     """
     plt.sca(axes)
 
+    # Data analysis
+    dilation = stimulus_data[[PUPIL_LEFT, PUPIL_RIGHT]]
+    dilation = dilation[(dilation[PUPIL_LEFT] != -1) & (dilation[PUPIL_RIGHT] != -1)]
+    time = convert_date_to_time(dilation.index)
     axes.plot(time, dilation[PUPIL_LEFT], label="Left Pupil")
     axes.plot(time, dilation[PUPIL_RIGHT], label="Right Pupil")
+
+    # Clean up plot
     axes.set_title("Raw Pupil Dilation Over Time")
     axes.set_xlabel("Time (minutes)", fontsize="large")
     axes.set_ylabel("Pupil Dilation (mm)", fontsize="large")
@@ -581,7 +577,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     minutes = int(WINDOW[:-1]) / 60
     width = minutes
     colors = get_quad_colors(window_metrics[QUADRANTS])
-    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors)
+    axes.bar(time, window_metrics[FIXATION_COUNTS].max(), alpha=.3, width=width, color=colors, align="edge")
     set_windowed_x_axis(axes)
 
 
