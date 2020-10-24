@@ -156,10 +156,15 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
     plt.show()
 
 
-def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
-    # Setup data
-    window_metrics = windowed_metrics(stimulus_data)
-    fixation_time = convert_date_to_time(window_metrics.index)
+def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
+    """
+    Plots the click stream data on a figure.
+
+    :param stimulus: the raw stimulus name
+    :param participant: the participant name
+    :param stimulus_data: the raw stimulus data
+    :return: the resulting figure
+    """
 
     # Setup figure
     fig_click, ax_click = plt.subplots(2, 1, figsize=(12, 6))
@@ -169,7 +174,7 @@ def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.Da
     mouse_event_plot = ax_click[1]
 
     # Plot
-    generate_click_stream_plot(click_stream_plot, fixation_time, window_metrics)
+    generate_click_stream_plot(click_stream_plot, stimulus_data)
     generate_mouse_event_plot(mouse_event_plot, stimulus_data)
 
     return fig_click
@@ -580,21 +585,22 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     set_windowed_x_axis(axes)
 
 
-def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     Generates a line plot of all click stream related data.
 
+    :param stimulus_data: the raw stimulus data
     :param axes: the axes to plot on
-    :param time: the time series
-    :param window_metrics: the windowed data
     :return: None
     """
     plt.sca(axes)
 
+    click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
+    time = convert_date_to_time(click_stream.index)
     minutes = int(WINDOW[:-1]) / 60
     width = minutes / 2 - minutes / 10  # .20
-    axes.bar(time, window_metrics[CLICK_STREAM].values, width=width, align="edge", label="Mouse Events")
-    axes.bar(time + width, window_metrics[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    axes.bar(time, click_stream[MOUSE_EVENT].values, width=width, align="edge", label="Mouse Events")
+    axes.bar(time + width, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
 
     # Clean up plot
     axes.set_title("Click Stream Events Over Time", fontsize="large")
@@ -605,6 +611,14 @@ def generate_click_stream_plot(axes: plt.Axes, time: np.array, window_metrics: p
 
 
 def generate_mouse_event_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
+    """
+    Generates a mouse event plot for each of the possible mouse events.
+
+    :param axes: the axes to plot on
+    :param stimulus_data: the raw stimulus data to analyze
+    :return: None
+    """
+
     plt.sca(axes)
 
     # Data analysis
@@ -843,15 +857,12 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
-    click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
         AVERAGE_FIX_DUR: average_fixation_duration,
         SPATIAL_DENSITY: spatial_density,
         FIXATION_TIME: fixation_time,
-        QUADRANTS: quadrants,
-        CLICK_STREAM: click_stream[MOUSE_EVENT][:unique_fixation_counts.size],
-        KEY_CODE: click_stream[KEY_CODE],
+        QUADRANTS: quadrants
     }
     return pd.DataFrame(frame)
 
