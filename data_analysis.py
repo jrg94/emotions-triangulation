@@ -1,5 +1,6 @@
 import csv
 import sys
+from pathlib import Path
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
@@ -23,7 +24,7 @@ FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 MOUSE_EVENT = "MouseEvent"
 GSR_RAW = "GSR RAW (no units) (Shimmer)"
-GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
+GSR_KILOHMS = "GSR CAL (kOhms) (Shimmer)"
 GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
 KEY_CODE = "KeyCode"
 
@@ -55,6 +56,7 @@ def read_tsv_files(*paths) -> dict:
     """
     output = dict()
     for path in paths:
+        print(f">>> Loading {path}")
         output[path] = read_tsv_file(path)
     return output
 
@@ -101,7 +103,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
     data[GSR_RAW] = pd.to_numeric(data[GSR_RAW])
-    data[GSR_KOHMS] = pd.to_numeric(data[GSR_KOHMS])
+    data[GSR_KILOHMS] = pd.to_numeric(data[GSR_KILOHMS])
     data[GSR_MICROSIEMENS] = pd.to_numeric(data[GSR_MICROSIEMENS])
     data[[MOUSE_EVENT, KEY_CODE]] = data[
         [MOUSE_EVENT, KEY_CODE]
@@ -129,23 +131,25 @@ def analyze_data(tables: dict):
             stimulus_filter = df[STIMULUS_NAME] == stimulus
             stimulus_data = df[stimulus_filter]
             report = summary_report(stimulus, stimulus_data)
+            print(">>> Dumping Summary Report")
             output_summary_report(report)
-            plot_data(participant, stimulus, stimulus_data)
+            plot_data(participant, stimulus, stimulus_data, "Overview")
             start = stimulus_data.index[0]
-            for _ in range(15):
+            for i in range(15):
                 end = start + pd.Timedelta("2min")
                 chunk = stimulus_data.loc[start: end]
-                plot_data(participant, stimulus, chunk)
+                plot_data(participant, stimulus, chunk, f"Segment {i + 1:02}")
                 start = end
 
 
-def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
+def plot_data(participant, stimulus, stimulus_data: pd.DataFrame, segment: str):
     """
     Given a set of data, a participant, and their stimulus, this function will plot various forms analyses as figures.
 
     :param participant: the name of the participant
     :param stimulus: the current stimulus used as the plot title
     :param stimulus_data: all raw data
+    :param segment: the unit of analysis
     :return: None
     """
 
@@ -158,8 +162,8 @@ def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
 
     for fig in figures:
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-    plt.show()
+        save_file(fig, participant, segment)
+        plt.close(fig)
 
 
 def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) -> plt.Figure:
@@ -195,7 +199,7 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
     """
 
     # Setup figure
-    fig_eda, ax_eda = plt.subplots(2, 2, figsize=(12, 8))
+    fig_eda, ax_eda = plt.subplots(2, 2, figsize=(14, 8))
     fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
     gsr_inverse_plot = ax_eda[0][0]
@@ -235,7 +239,7 @@ def plot_pupil_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame
     """
 
     # Setup figure
-    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 6))
+    fig_dilation, ax_dilation = plt.subplots(2, 1, figsize=(12, 8))
     fig_dilation.suptitle(f'{stimulus}: {participant}')
     fig_dilation.canvas.set_window_title("Pupil Analysis")
     dilation_plot = ax_dilation[0]
@@ -263,7 +267,7 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     fixation_time = convert_date_to_time(window_metrics.index)
 
     # Setup figure
-    fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(12, 8))
+    fig_fixation, ax_fixation = plt.subplots(3, 1, figsize=(14, 10))
     fig_fixation.suptitle(f'{stimulus}: {participant}')
     fig_fixation.canvas.set_window_title("Eye Gaze Analysis")
     line_plot = ax_fixation[1]
@@ -273,7 +277,7 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     # Plot
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_correlation_plot(correlation_plot, window_metrics)
-    generate_auxilary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
+    generate_auxiliary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
 
     return fig_fixation
 
@@ -361,7 +365,7 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
     axes.tick_params(axis="y", labelcolor=color)
     set_windowed_x_axis(axes)
-    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
+    axes.plot(time, stimulus_data[GSR_KILOHMS], color=color)
 
     ax2 = axes.twinx()
     color = 'tab:cyan'
@@ -522,7 +526,7 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     axes.autoscale(tight=True)
 
 
-def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_auxiliary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
     Plots eye gaze metrics that may assist in triangulation.
 
@@ -533,7 +537,7 @@ def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metri
     """
     plt.sca(axes)
 
-    axes.set_title("Auxilary Eye Gaze Metrics Over Time")
+    axes.set_title("Auxiliary Eye Gaze Metrics Over Time")
 
     # Spatial density plot
     color = 'tab:red'
@@ -708,7 +712,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     """
     seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
-    axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
+    axes.xaxis.set_minor_locator(MultipleLocator(seconds / 60))
     axes.autoscale(tight=True, axis="x")
 
 
@@ -750,7 +754,7 @@ def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.arr
     )
 
 
-def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: tuple):
+def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xy_text: tuple):
     """
     A pupil labeling procedure which leverages pupil data to apply annotations.
     In particular, this function labels the min and max dots in a scatter plot
@@ -759,7 +763,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
     :param pupil_data: a special dataframe of pupil data
     :param axes: the axes to plot on
     :param color: the color of the scatter plot dots
-    :param xytext: the offset for the label
+    :param xy_text: the offset for the label
     :return: None
     """
     edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
@@ -769,7 +773,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=xytext
+        xytext=xy_text
     )
     axes.annotate(
         f'{pupil_data["Raw"].min():.2f} mm',
@@ -777,7 +781,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=xytext
+        xytext=xy_text
     )
     # noinspection PyTypeChecker
     axes.scatter(
@@ -912,6 +916,23 @@ def output_summary_report(metrics: dict, depth: int = 0):
             output_summary_report(v, depth + 1)
         else:
             print(f'{indent}{k}: {v}')
+
+
+def save_file(fig: plt.Figure, participant: str, segment: str):
+    """
+    A helper function which generates folders and file names for each figure to be saved.
+
+    :param fig: the figure object to be saved
+    :param participant: the name of the participant whose figure is being saved
+    :param segment: the name of the segment to be stored
+    :return:
+    """
+    file_name = f"{segment} of {participant}'s {fig.canvas.get_window_title()} Over {WINDOW}"
+    file_path = Path("plots", participant, segment)
+    file_path.mkdir(parents=True, exist_ok=True)
+    to_save = file_path / Path(file_name).with_suffix(".png")
+    print(f">>> Saving {file_name}")
+    fig.savefig(to_save)
 
 
 # MAIN LOGIC -----------------------------------------------------------------------
