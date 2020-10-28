@@ -1,6 +1,5 @@
 import csv
 import sys
-import os
 from pathlib import Path
 from typing import Tuple, List
 
@@ -25,7 +24,7 @@ FIXATION_Y = "FixationY"
 TIMESTAMP = "Timestamp"
 MOUSE_EVENT = "MouseEvent"
 GSR_RAW = "GSR RAW (no units) (Shimmer)"
-GSR_KOHMS = "GSR CAL (kOhms) (Shimmer)"
+GSR_KILOHMS = "GSR CAL (kOhms) (Shimmer)"
 GSR_MICROSIEMENS = "GSR CAL (ÂµSiemens) (Shimmer)"
 KEY_CODE = "KeyCode"
 
@@ -104,7 +103,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     data[PUPIL_LEFT] = pd.to_numeric(data[PUPIL_LEFT])
     data[PUPIL_RIGHT] = pd.to_numeric(data[PUPIL_RIGHT])
     data[GSR_RAW] = pd.to_numeric(data[GSR_RAW])
-    data[GSR_KOHMS] = pd.to_numeric(data[GSR_KOHMS])
+    data[GSR_KILOHMS] = pd.to_numeric(data[GSR_KILOHMS])
     data[GSR_MICROSIEMENS] = pd.to_numeric(data[GSR_MICROSIEMENS])
     data[[MOUSE_EVENT, KEY_CODE]] = data[
         [MOUSE_EVENT, KEY_CODE]
@@ -278,7 +277,7 @@ def plot_eye_gaze_data(stimulus: str, participant: str, stimulus_data: pd.DataFr
     # Plot
     generate_fixation_plot(line_plot, fixation_time, window_metrics)
     generate_correlation_plot(correlation_plot, window_metrics)
-    generate_auxilary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
+    generate_auxiliary_eye_gaze_plot(aux_plot, fixation_time, window_metrics)
 
     return fig_fixation
 
@@ -366,7 +365,7 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
     axes.tick_params(axis="y", labelcolor=color)
     set_windowed_x_axis(axes)
-    axes.plot(time, stimulus_data[GSR_KOHMS], color=color)
+    axes.plot(time, stimulus_data[GSR_KILOHMS], color=color)
 
     ax2 = axes.twinx()
     color = 'tab:cyan'
@@ -527,7 +526,7 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     axes.autoscale(tight=True)
 
 
-def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
+def generate_auxiliary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
     """
     Plots eye gaze metrics that may assist in triangulation.
 
@@ -538,7 +537,7 @@ def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metri
     """
     plt.sca(axes)
 
-    axes.set_title("Auxilary Eye Gaze Metrics Over Time")
+    axes.set_title("Auxiliary Eye Gaze Metrics Over Time")
 
     # Spatial density plot
     color = 'tab:red'
@@ -755,7 +754,7 @@ def merge_pupil_data(norm_column: pd.Series, raw_column: pd.Series, time: np.arr
     )
 
 
-def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: tuple):
+def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xy_text: tuple):
     """
     A pupil labeling procedure which leverages pupil data to apply annotations.
     In particular, this function labels the min and max dots in a scatter plot
@@ -764,7 +763,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
     :param pupil_data: a special dataframe of pupil data
     :param axes: the axes to plot on
     :param color: the color of the scatter plot dots
-    :param xytext: the offset for the label
+    :param xy_text: the offset for the label
     :return: None
     """
     edge_data = generate_pupil_edge_colors(pupil_data["Normalized"], color)
@@ -774,7 +773,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=xytext
+        xytext=xy_text
     )
     axes.annotate(
         f'{pupil_data["Raw"].min():.2f} mm',
@@ -782,7 +781,7 @@ def label_pupils(pupil_data: pd.DataFrame, axes: plt.Axes, color: str, xytext: t
         textcoords="offset points",
         ha='center',
         va='center',
-        xytext=xytext
+        xytext=xy_text
     )
     # noinspection PyTypeChecker
     axes.scatter(
