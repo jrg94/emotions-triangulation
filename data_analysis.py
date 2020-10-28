@@ -173,15 +173,13 @@ def plot_click_stream_data(stimulus: str, participant: str, stimulus_data: pd.Da
     """
 
     # Setup figure
-    fig_click, ax_click = plt.subplots(2, 1, figsize=(12, 6))
+    fig_click, ax_click = plt.subplots(1, 1, figsize=(12, 6))
     fig_click.suptitle(f'{stimulus}: {participant}')
     fig_click.canvas.set_window_title("Click Stream Analysis")
-    click_stream_plot = ax_click[0]
-    mouse_event_plot = ax_click[1]
+    click_stream_plot = ax_click
 
     # Plot
     generate_click_stream_plot(click_stream_plot, stimulus_data)
-    generate_mouse_event_plot(mouse_event_plot, stimulus_data)
 
     return fig_click
 
@@ -521,6 +519,7 @@ def generate_correlation_plot(axes: plt.Axes, window_metrics: pd.DataFrame):
     axes.scatter(window_metrics[AVERAGE_FIX_DUR], window_metrics[FIXATION_COUNTS], zorder=4)
     axes.set_xlabel("Mean Fixation Duration (ms)", fontsize="large")
     axes.set_ylabel("Fixation Count", fontsize="large")
+    axes.autoscale(tight=True)
 
 
 def generate_auxilary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metrics: pd.DataFrame):
@@ -597,12 +596,16 @@ def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     """
     plt.sca(axes)
 
+    data = stimulus_data.groupby([pd.Grouper(freq=WINDOW), MOUSE_EVENT])[MOUSE_EVENT].count().unstack()
     click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
     time = convert_date_to_time(click_stream.index)
     minutes = int(WINDOW[:-1]) / 60
-    width = minutes / 2 - minutes / 10  # .20
-    axes.bar(time, click_stream[MOUSE_EVENT].values, width=width, align="edge", label="Mouse Events")
-    axes.bar(time + width, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    width = minutes - minutes / 10  # .20
+    axes.bar(time, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    accumulator = click_stream[KEY_CODE].values
+    for column in data:
+        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=column)
+        accumulator += data[column]
 
     # Clean up plot
     axes.set_title("Click Stream Events Over Time", fontsize="large")
