@@ -600,11 +600,11 @@ def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     click_stream = stimulus_data.resample(WINDOW)[[MOUSE_EVENT, KEY_CODE]].count()
     time = convert_date_to_time(click_stream.index)
     minutes = int(WINDOW[:-1]) / 60
-    width = minutes - minutes / 10  # .20
-    axes.bar(time, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events")
+    width = minutes
+    axes.bar(time, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events", edgecolor="black")
     accumulator = click_stream[KEY_CODE].values
     for column in data:
-        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=column)
+        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=column, edgecolor="black")
         accumulator += data[column]
 
     # Clean up plot
