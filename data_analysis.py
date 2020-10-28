@@ -712,7 +712,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     """
     seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
-    axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
+    axes.xaxis.set_minor_locator(MultipleLocator(seconds / 60))
     axes.autoscale(tight=True, axis="x")
 
 
