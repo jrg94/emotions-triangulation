@@ -131,6 +131,12 @@ def analyze_data(tables: dict):
             report = summary_report(stimulus, stimulus_data)
             output_summary_report(report)
             plot_data(participant, stimulus, stimulus_data)
+            start = stimulus_data.index[0]
+            for _ in range(15):
+                end = start + pd.Timedelta("2min")
+                chunk = stimulus_data.loc[start: end]
+                plot_data(participant, stimulus, chunk)
+                start = end
 
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame):
@@ -700,7 +706,7 @@ def set_windowed_x_axis(axes: plt.Axes):
     seconds = int(WINDOW[:-1])
     axes.xaxis.set_major_locator(MultipleLocator(2))
     axes.xaxis.set_minor_locator(MultipleLocator(seconds/60))
-    axes.set_xlim(0, 30)
+    axes.autoscale(tight=True, axis="x")
 
 
 def convert_date_to_time(date: pd.Series) -> pd.Series:
