@@ -39,7 +39,7 @@ CLICK_STREAM = "Click Stream"
 RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "20S"
+WINDOW = "10S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 100  # Scales the dilation dot visually
@@ -570,6 +570,7 @@ def generate_fixation_plot(axes: plt.Axes, time: np.array, window_metrics: pd.Da
     color = 'tab:cyan'
     ax2.plot(time, window_metrics[AVERAGE_FIX_DUR], color=color, linewidth=2)
     ax2.set_ylabel("Mean Fixation Duration (ms)", color=color, fontsize="large")
+    ax2.set_ylim(bottom=100)
     ax2.tick_params(axis='y', labelcolor=color)
 
     # Background quadrants
