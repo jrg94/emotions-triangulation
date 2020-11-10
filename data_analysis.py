@@ -57,7 +57,7 @@ def read_data_files(*paths) -> dict:
     output = dict()
     for path in paths:
         print("-" * 50)
-        print(f">>> Loading {path}")
+        print(f">>> Loading {path} as a dictionary")
         output[path] = read_tsv_file(path)
     return output
 
@@ -92,6 +92,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     :param tables: a raw dictionary of iMotions data for a participant
     :return: a pandas DataFrame of the iMotions data
     """
+    print(">>> Converting dictionary to DataFrame")
     data_table = tables[DATA]
     header = data_table[0]
     data = pd.DataFrame(data_table[1:], columns=header)
