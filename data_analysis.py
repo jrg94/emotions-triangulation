@@ -134,12 +134,6 @@ def analyze_data(tables: dict):
             print(">>> Dumping Summary Report")
             output_summary_report(report)
             plot_data(participant, stimulus, stimulus_data, "Overview")
-            start = stimulus_data.index[0]
-            for i in range(15):
-                end = start + pd.Timedelta("2min")
-                chunk = stimulus_data.loc[start: end]
-                plot_data(participant, stimulus, chunk, f"Segment {i + 1:02}")
-                start = end
 
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame, segment: str):
@@ -699,6 +693,23 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
 
 
 # HELPER FUNCTIONS --------------------------------------------------------------------------------
+
+
+def plot_segments(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
+    """
+    A helper function for generating segment plots.
+
+    :param stimulus: the stimulus to analyze
+    :param participant: the participant name
+    :param stimulus_data: the raw stimulus data
+    :return: None
+    """
+    start = stimulus_data.index[0]
+    for i in range(15):
+        end = start + pd.Timedelta("2min")
+        chunk = stimulus_data.loc[start: end]
+        plot_data(participant, stimulus, chunk, f"Segment {i + 1:02}")
+        start = end
 
 
 def set_windowed_x_axis(axes: plt.Axes):
