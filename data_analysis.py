@@ -56,6 +56,7 @@ def read_tsv_files(*paths) -> dict:
     """
     output = dict()
     for path in paths:
+        print("-" * 50)
         print(f">>> Loading {path}")
         output[path] = read_tsv_file(path)
     return output
@@ -957,10 +958,18 @@ def main():
     """
     if len(sys.argv) > 1:
         paths = sys.argv[1:]
-        participants = read_tsv_files(*paths)
-        for participant in paths:
-            analyze_data(participants[participant])
-
+        for path in paths:
+            # Process a single file
+            if not Path(path).is_dir():
+                participants = read_tsv_files(path)
+                analyze_data(participants[path])
+                del participants
+            # Process a folder
+            else:
+                for sub_path in Path(path).iterdir():
+                    participants = read_tsv_files(sub_path)
+                    analyze_data(participants[sub_path])
+                    del participants
 
 if __name__ == '__main__':
     main()
