@@ -1,4 +1,5 @@
 import csv
+import logging
 import sys
 from pathlib import Path
 from typing import Tuple, List
@@ -56,8 +57,8 @@ def read_data_files(*paths) -> dict:
     """
     output = dict()
     for path in paths:
-        print("-" * 50)
-        print(f">>> Loading {path} as a dictionary")
+        logging.info("-" * 50)
+        logging.info(f"Loading {path} as a dictionary")
         output[path] = read_tsv_file(path)
     return output
 
@@ -92,7 +93,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     :param tables: a raw dictionary of iMotions data for a participant
     :return: a pandas DataFrame of the iMotions data
     """
-    print(">>> Converting dictionary to DataFrame")
+    logging.info("Converting dictionary to DataFrame")
     data_table = tables[DATA]
     header = data_table[0]
     data = pd.DataFrame(data_table[1:], columns=header)
@@ -133,7 +134,7 @@ def analyze_data(tables: dict):
             stimulus_filter = df[STIMULUS_NAME] == stimulus
             stimulus_data = df[stimulus_filter]
             report = summary_report(stimulus, stimulus_data)
-            print(">>> Dumping Summary Report")
+            logging.info("Dumping Summary Report")
             output_summary_report(report)
             plot_data(participant, stimulus, stimulus_data, "Overview")
     del df
@@ -945,7 +946,7 @@ def save_file(fig: plt.Figure, participant: str, segment: str):
     file_path = Path("plots", participant, segment)
     file_path.mkdir(parents=True, exist_ok=True)
     to_save = file_path / Path(file_name).with_suffix(".png")
-    print(f">>> Saving {file_name}")
+    logging.info(f"Saving {file_name}")
     fig.savefig(to_save)
 
 
@@ -956,7 +957,7 @@ def expand_paths(paths: List[str]) -> List[str]:
     :param paths: a list of paths
     :return: an expanded list of paths
     """
-    print(f">>> Expanding provided paths list: {paths}")
+    logging.info(f"Expanding provided paths list: {paths}")
     all_paths = list()
     for path in paths:
         if not Path(path).is_dir():
@@ -964,7 +965,7 @@ def expand_paths(paths: List[str]) -> List[str]:
         else:
             for sub_path in Path(path).iterdir():
                 all_paths.append(sub_path)
-    print(f">>> Expanded paths: {all_paths}")
+    logging.info(f"Expanded paths: {all_paths}")
     return all_paths
 
 
@@ -977,6 +978,11 @@ def main():
 
     :return: None
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format=">>> %(levelname)s: %(asctime)s: %(message)s",
+        datefmt='%m/%d/%Y @ %I:%M:%S %p'
+    )
     if len(sys.argv) > 1:
         paths = sys.argv[1:]
         paths = expand_paths(paths)
