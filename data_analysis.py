@@ -47,7 +47,7 @@ VISUAL_SCALE = 100  # Scales the dilation dot visually
 # DATA LOADING -----------------------------------------------------------------------
 
 
-def read_tsv_files(*paths) -> dict:
+def read_data_files(*paths) -> dict:
     """
     Reads a series of TSV files from iMotions.
 
@@ -135,6 +135,7 @@ def analyze_data(tables: dict):
             print(">>> Dumping Summary Report")
             output_summary_report(report)
             plot_data(participant, stimulus, stimulus_data, "Overview")
+    del df
 
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame, segment: str):
@@ -947,6 +948,25 @@ def save_file(fig: plt.Figure, participant: str, segment: str):
     fig.savefig(to_save)
 
 
+def expand_paths(paths: List[str]) -> List[str]:
+    """
+    A helper function for expanding a list of paths that may contain directories.
+
+    :param paths: a list of paths
+    :return: an expanded list of paths
+    """
+    print(f">>> Expanding provided paths list: {paths}")
+    all_paths = list()
+    for path in paths:
+        if not Path(path).is_dir():
+            all_paths.append(path)
+        else:
+            for sub_path in Path(path).iterdir():
+                all_paths.append(sub_path)
+    print(f">>> Expanded paths: {all_paths}")
+    return all_paths
+
+
 # MAIN LOGIC -----------------------------------------------------------------------
 
 
@@ -958,18 +978,12 @@ def main():
     """
     if len(sys.argv) > 1:
         paths = sys.argv[1:]
+        paths = expand_paths(paths)
         for path in paths:
-            # Process a single file
-            if not Path(path).is_dir():
-                participants = read_tsv_files(path)
-                analyze_data(participants[path])
-                del participants
-            # Process a folder
-            else:
-                for sub_path in Path(path).iterdir():
-                    participants = read_tsv_files(sub_path)
-                    analyze_data(participants[sub_path])
-                    del participants
+            participants = read_data_files(path)
+            analyze_data(participants[path])
+            del participants
+
 
 if __name__ == '__main__':
     main()
