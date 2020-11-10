@@ -1,4 +1,5 @@
 import csv
+import logging
 import sys
 from pathlib import Path
 from typing import Tuple, List
@@ -47,7 +48,7 @@ VISUAL_SCALE = 100  # Scales the dilation dot visually
 # DATA LOADING -----------------------------------------------------------------------
 
 
-def read_tsv_files(*paths) -> dict:
+def read_data_files(*paths) -> dict:
     """
     Reads a series of TSV files from iMotions.
 
@@ -56,7 +57,8 @@ def read_tsv_files(*paths) -> dict:
     """
     output = dict()
     for path in paths:
-        print(f">>> Loading {path}")
+        logging.info("-" * 50)
+        logging.info(f"Loading {path} as a dictionary")
         output[path] = read_tsv_file(path)
     return output
 
@@ -91,6 +93,7 @@ def clean_data(tables: dict) -> pd.DataFrame:
     :param tables: a raw dictionary of iMotions data for a participant
     :return: a pandas DataFrame of the iMotions data
     """
+    logging.info("Converting dictionary to DataFrame")
     data_table = tables[DATA]
     header = data_table[0]
     data = pd.DataFrame(data_table[1:], columns=header)
@@ -131,15 +134,10 @@ def analyze_data(tables: dict):
             stimulus_filter = df[STIMULUS_NAME] == stimulus
             stimulus_data = df[stimulus_filter]
             report = summary_report(stimulus, stimulus_data)
-            print(">>> Dumping Summary Report")
+            logging.info("Dumping Summary Report")
             output_summary_report(report)
             plot_data(participant, stimulus, stimulus_data, "Overview")
-            start = stimulus_data.index[0]
-            for i in range(15):
-                end = start + pd.Timedelta("2min")
-                chunk = stimulus_data.loc[start: end]
-                plot_data(participant, stimulus, chunk, f"Segment {i + 1:02}")
-                start = end
+    del df
 
 
 def plot_data(participant, stimulus, stimulus_data: pd.DataFrame, segment: str):
@@ -359,19 +357,9 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     time = convert_date_to_time(stimulus_data.index)
 
     axes.set_title("GSR Over Time")
-
-    color = 'tab:red'
-    axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
-    axes.tick_params(axis="y", labelcolor=color)
     set_windowed_x_axis(axes)
-    axes.plot(time, stimulus_data[GSR_KILOHMS], color=color)
-
-    ax2 = axes.twinx()
-    color = 'tab:cyan'
-    ax2.set_ylabel("GSR (µS)", color=color, fontsize="large")
-    ax2.tick_params(axis="y", labelcolor=color)
-    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
+    axes.set_ylabel("GSR (µS)", fontsize="large")
+    axes.plot(time, stimulus_data[GSR_MICROSIEMENS], linewidth=2)
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
@@ -701,6 +689,23 @@ def summary_report(stimulus: str, stimulus_data: pd.DataFrame) -> dict:
 # HELPER FUNCTIONS --------------------------------------------------------------------------------
 
 
+def plot_segments(stimulus: str, participant: str, stimulus_data: pd.DataFrame):
+    """
+    A helper function for generating segment plots.
+
+    :param stimulus: the stimulus to analyze
+    :param participant: the participant name
+    :param stimulus_data: the raw stimulus data
+    :return: None
+    """
+    start = stimulus_data.index[0]
+    for i in range(15):
+        end = start + pd.Timedelta("2min")
+        chunk = stimulus_data.loc[start: end]
+        plot_data(participant, stimulus, chunk, f"Segment {i + 1:02}")
+        start = end
+
+
 def set_windowed_x_axis(axes: plt.Axes):
     """
     A helper function for showing markers on windowed data.
@@ -931,8 +936,27 @@ def save_file(fig: plt.Figure, participant: str, segment: str):
     file_path = Path("plots", participant, segment)
     file_path.mkdir(parents=True, exist_ok=True)
     to_save = file_path / Path(file_name).with_suffix(".png")
-    print(f">>> Saving {file_name}")
+    logging.info(f"Saving {file_name}")
     fig.savefig(to_save)
+
+
+def expand_paths(paths: List[str]) -> List[str]:
+    """
+    A helper function for expanding a list of paths that may contain directories.
+
+    :param paths: a list of paths
+    :return: an expanded list of paths
+    """
+    logging.info(f"Expanding provided paths list: {paths}")
+    all_paths = list()
+    for path in paths:
+        if not Path(path).is_dir():
+            all_paths.append(path)
+        else:
+            for sub_path in Path(path).iterdir():
+                all_paths.append(sub_path)
+    logging.info(f"Expanded paths: {all_paths}")
+    return all_paths
 
 
 # MAIN LOGIC -----------------------------------------------------------------------
@@ -944,11 +968,18 @@ def main():
 
     :return: None
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format=">>> %(levelname)s: %(asctime)s: %(message)s",
+        datefmt='%m/%d/%Y @ %I:%M:%S %p'
+    )
     if len(sys.argv) > 1:
         paths = sys.argv[1:]
-        participants = read_tsv_files(*paths)
-        for participant in paths:
-            analyze_data(participants[participant])
+        paths = expand_paths(paths)
+        for path in paths:
+            participants = read_data_files(path)
+            analyze_data(participants[path])
+            del participants
 
 
 if __name__ == '__main__':
