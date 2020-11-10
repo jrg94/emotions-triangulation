@@ -357,19 +357,9 @@ def generate_gsr_inverse_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     time = convert_date_to_time(stimulus_data.index)
 
     axes.set_title("GSR Over Time")
-
-    color = 'tab:red'
-    axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("GSR (kOhms)", fontsize="large", color=color)
-    axes.tick_params(axis="y", labelcolor=color)
     set_windowed_x_axis(axes)
-    axes.plot(time, stimulus_data[GSR_KILOHMS], color=color)
-
-    ax2 = axes.twinx()
-    color = 'tab:cyan'
-    ax2.set_ylabel("GSR (µS)", color=color, fontsize="large")
-    ax2.tick_params(axis="y", labelcolor=color)
-    ax2.plot(time, stimulus_data[GSR_MICROSIEMENS], color=color, linewidth=2)
+    axes.set_ylabel("GSR (µS)", fontsize="large")
+    axes.plot(time, stimulus_data[GSR_MICROSIEMENS], linewidth=2)
 
 
 def generate_pupil_circle_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
