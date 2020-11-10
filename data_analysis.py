@@ -197,13 +197,13 @@ def plot_eda_data(stimulus: str, participant: str, stimulus_data: pd.DataFrame) 
     """
 
     # Setup figure
-    fig_eda, ax_eda = plt.subplots(2, 2, figsize=(14, 8))
+    fig_eda, ax_eda = plt.subplots(4, 1, figsize=(12, 12))
     fig_eda.suptitle(f'{stimulus}: {participant}')
     fig_eda.canvas.set_window_title("EDA Analysis")
-    gsr_inverse_plot = ax_eda[0][0]
-    gsr_range_corrected_plot = ax_eda[0][1]
-    gsr_range_corrected_mean_plot = ax_eda[1][0]
-    gsr_peaks_plot = ax_eda[1][1]
+    gsr_inverse_plot = ax_eda[0]
+    gsr_range_corrected_plot = ax_eda[1]
+    gsr_range_corrected_mean_plot = ax_eda[2]
+    gsr_peaks_plot = ax_eda[3]
 
     # Quick analysis
     gsr_us = stimulus_data[GSR_MICROSIEMENS]
@@ -531,7 +531,8 @@ def generate_auxiliary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metr
     color = 'tab:red'
     axes.plot(time, window_metrics[SPATIAL_DENSITY], color=color, linewidth=2)
     axes.set_xlabel("Time (minutes)", fontsize="large")
-    axes.set_ylabel("Spatial Density", color=color, fontsize="large")
+    axes.set_ylabel("Spatial Density (%)", color=color, fontsize="large")
+    axes.set_ylim(0, 100)
     axes.tick_params(axis="y", labelcolor=color)
 
     # Fixation time plot
@@ -540,6 +541,7 @@ def generate_auxiliary_eye_gaze_plot(axes: plt.Axes, time: np.array, window_metr
     ax2.plot(time, window_metrics[FIXATION_TIME], color=color, linewidth=2)
     ax2.set_ylabel("Fixation Time (%)", color=color, fontsize="large")
     ax2.tick_params(axis="y", labelcolor=color)
+    ax2.set_ylim(0, 100)
     set_windowed_x_axis(axes)
 
 
@@ -849,11 +851,11 @@ def compute_spatial_density(df: pd.DataFrame) -> float:
     the ratio of grid points that are occupied by fixation points.
 
     :param df: a dataframe containing fixation points
-    :return: a ratio
+    :return: a percentage
     """
     points = [index for x, y in zip(df[FIXATION_X], df[FIXATION_Y]) if (index := grid_index(x, y)) >= 0]
     count = len(np.unique(points))
-    return count / 100
+    return count
 
 
 def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
@@ -867,7 +869,7 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)
     unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
-    fixation_time = windowed_data.sum()[FIXATION_DURATION] / 300  # converts to a percentage assuming 30 second window
+    fixation_time = windowed_data.sum()[FIXATION_DURATION] / (int(WINDOW[:-1]) * 10)
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
