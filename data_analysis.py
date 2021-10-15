@@ -817,10 +817,10 @@ def get_quadrant_color_map() -> dict:
     """
     colors = cm.get_cmap("Pastel1").colors
     quads = {
-        "Q1": colors[0],
-        "Q2": colors[1],
-        "Q3": colors[2],
-        "Q4": colors[3]
+        "Q1": colors[0],  # 0: Red
+        "Q2": colors[1],  # 1: Blue
+        "Q3": colors[2],  # 2: Green
+        "Q4": colors[5]   # 5: Yellow
     }
     return quads
 
