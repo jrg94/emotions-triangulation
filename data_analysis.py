@@ -39,7 +39,7 @@ CLICK_STREAM = "Click Stream"
 RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "10S"
+WINDOW = "20S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 100  # Scales the dilation dot visually
@@ -598,8 +598,16 @@ def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     width = minutes
     axes.bar(time, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events", edgecolor="black")
     accumulator = click_stream[KEY_CODE].values
+    mapping = {
+        "WM_LBUTTONDBLCLK": "Double Left Click",
+        "WM_LBUTTONDOWN": "Left Click Down",
+        "WM_LBUTTONUP": "Left Click Up",
+        "WM_MOUSEWHEEL": "Scroll Wheel",
+        "WM_RBUTTONDOWN": "Right Click Down",
+        "WM_RBUTTONUP": "Right Click Up"
+    }
     for column in data:
-        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=column, edgecolor="black")
+        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=mapping[column], edgecolor="black")
         accumulator += data[column]
 
     # Clean up plot
