@@ -39,7 +39,7 @@ CLICK_STREAM = "Click Stream"
 RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "10S"
+WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 100  # Scales the dilation dot visually
@@ -598,8 +598,16 @@ def generate_click_stream_plot(axes: plt.Axes, stimulus_data: pd.DataFrame):
     width = minutes
     axes.bar(time, click_stream[KEY_CODE].values, width=width, align="edge", label="Keyboard Events", edgecolor="black")
     accumulator = click_stream[KEY_CODE].values
+    mapping = {
+        "WM_LBUTTONDBLCLK": "Double Left Click",
+        "WM_LBUTTONDOWN": "Left Click Down",
+        "WM_LBUTTONUP": "Left Click Up",
+        "WM_MOUSEWHEEL": "Scroll Wheel",
+        "WM_RBUTTONDOWN": "Right Click Down",
+        "WM_RBUTTONUP": "Right Click Up"
+    }
     for column in data:
-        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=column, edgecolor="black")
+        axes.bar(time, data[column], width=width, align="edge", bottom=accumulator, label=mapping[column], edgecolor="black")
         accumulator += data[column]
 
     # Clean up plot
@@ -809,10 +817,10 @@ def get_quadrant_color_map() -> dict:
     """
     colors = cm.get_cmap("Pastel1").colors
     quads = {
-        "Q1": colors[0],
-        "Q2": colors[1],
-        "Q3": colors[2],
-        "Q4": colors[3]
+        "Q1": colors[0],  # 0: Red
+        "Q2": colors[1],  # 1: Blue
+        "Q3": colors[2],  # 2: Green
+        "Q4": colors[5]   # 5: Yellow
     }
     return quads
 
@@ -866,13 +874,16 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     :param stimulus_data: the section of the data only relevant to the stimulus
     :return: fixation counts, average fixation duration (tuple)
     """
-    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)
-    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
+    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)  # removes duplicate sequence numbers
+    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)  # Cuts data into 10 second windows
+    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]  # 1-1018 fixation points
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
-    fixation_time = windowed_data.sum()[FIXATION_DURATION] / (int(WINDOW[:-1]) * 10)
+
+    # Not used
+    fixation_time = windowed_data.sum()[FIXATION_DURATION] / (int(WINDOW[:-1]) * 10)  # 10S -> 10 * 10 = 100
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
+
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
