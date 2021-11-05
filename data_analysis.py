@@ -39,7 +39,7 @@ CLICK_STREAM = "Click Stream"
 RANGE_CORRECT_EDA = "range_corrected_eda"
 
 TIME_FORMAT = "%Y%m%d_%H%M%S%f"
-WINDOW = "20S"
+WINDOW = "30S"
 PUPIL_LEFT = "PupilLeft"
 PUPIL_RIGHT = "PupilRight"
 VISUAL_SCALE = 100  # Scales the dilation dot visually
@@ -874,13 +874,16 @@ def windowed_metrics(stimulus_data: pd.DataFrame) -> pd.DataFrame:
     :param stimulus_data: the section of the data only relevant to the stimulus
     :return: fixation counts, average fixation duration (tuple)
     """
-    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)
-    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)
-    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]
+    fixation_sequence_sans_dupes = stimulus_data.drop_duplicates(FIXATION_SEQUENCE)  # removes duplicate sequence numbers
+    windowed_data = fixation_sequence_sans_dupes.resample(WINDOW)  # Cuts data into 10 second windows
+    unique_fixation_counts = windowed_data.nunique()[FIXATION_SEQUENCE]  # 1-1018 fixation points
     average_fixation_duration = windowed_data.mean()[FIXATION_DURATION]
-    fixation_time = windowed_data.sum()[FIXATION_DURATION] / (int(WINDOW[:-1]) * 10)
+
+    # Not used
+    fixation_time = windowed_data.sum()[FIXATION_DURATION] / (int(WINDOW[:-1]) * 10)  # 10S -> 10 * 10 = 100
     fixation_windows = windowed_data[[FIXATION_SEQUENCE, FIXATION_X, FIXATION_Y]]
     spatial_density = fixation_windows.apply(compute_spatial_density)
+
     quadrants = compute_quadrant(average_fixation_duration, unique_fixation_counts)
     frame = {
         FIXATION_COUNTS: unique_fixation_counts,
